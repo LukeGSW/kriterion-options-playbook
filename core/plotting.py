@@ -38,7 +38,7 @@ def create_pnl_chart(underlying_range, pnl_at_T, pnl_at_expiration, strategy_nam
     fig.update_layout(
         title=f"Profilo Rischio/Rendimento: {strategy_name}",
         xaxis_title="Prezzo Sottostante",
-        yaxis_title="Profit / Loss",
+        yaxis_title="Profit / Loss (per Contratto)",
         legend=dict(x=0.01, y=0.99, orientation="h"),
         template="plotly_white"
     )
