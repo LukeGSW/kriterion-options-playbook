@@ -2,7 +2,7 @@ import streamlit as st
 import numpy as np
 import pandas as pd
 from strategies.strategy_database import STRATEGY_DATABASE
-from core.financial_calcs import calculate_pnl_and_greeks
+from core.financial_calcs import calculate_pnl_and_greeks, get_strike
 from core.plotting import create_pnl_chart
 
 # --- Configurazione Pagina ---
@@ -18,82 +18,71 @@ st.markdown("Il simulatore interattivo per strategie in opzioni.")
 # --- Sidebar per Input Utente ---
 st.sidebar.header("Parametri di Input")
 
-# --- NUOVA SELEZIONE A DUE LIVELLI ---
-# 1. Scelta Categoria
+# Selezione a due livelli
 categories = list(STRATEGY_DATABASE.keys())
-selected_category = st.sidebar.selectbox(
-    "1. Scegli una Categoria",
-    options=categories
-)
+selected_category = st.sidebar.selectbox("1. Scegli una Categoria", options=categories)
 
-# 2. Scelta Strategia (dipendente dalla categoria)
 strategies_in_category = list(STRATEGY_DATABASE[selected_category].keys())
-selected_strategy_name = st.sidebar.selectbox(
-    "2. Scegli una Strategia",
-    options=strategies_in_category,
-    # Se la categoria non ha strategie, disabilita il selectbox
-    disabled=not strategies_in_category
-)
+selected_strategy_name = st.sidebar.selectbox("2. Scegli una Strategia", options=strategies_in_category)
 
-# Mostra la descrizione solo se una strategia è stata selezionata
-if selected_strategy_name:
-    strategy_details = STRATEGY_DATABASE[selected_category][selected_strategy_name]
-    st.sidebar.info(strategy_details["description"])
-else:
-    # Placeholder nel caso una categoria sia vuota
-    strategy_details = None
-    st.sidebar.warning("Nessuna strategia definita per questa categoria.")
+strategy_details = STRATEGY_DATABASE[selected_category][selected_strategy_name]
+st.sidebar.info(strategy_details["description"])
+if "note" in strategy_details:
+    st.sidebar.warning(f'Nota: {strategy_details["note"]}')
 
 
-# 3. Parametri di Mercato e Contratto
+# Parametri di Mercato e Contratto
 st.sidebar.subheader("3. Parametri di Mercato")
 underlying_price = st.sidebar.number_input("Prezzo Sottostante (S)", value=100.0, step=0.5)
 center_strike = st.sidebar.number_input("Strike Centrale (K)", value=100.0, step=0.5)
 
-# 4. Parametri per Analisi Avanzata
+# Parametri per Analisi Avanzata
 st.sidebar.subheader("4. Parametri di Analisi")
-days_to_expiration = st.sidebar.slider(
-    "Giorni alla Scadenza (DTE)", 
-    min_value=1, max_value=365, value=30
-)
-implied_volatility = st.sidebar.slider(
-    "Volatilità Implicita (%)", 
-    min_value=5, max_value=150, value=20
-)
+base_days_to_expiration = st.sidebar.slider("Giorni alla Scadenza (base)", min_value=1, max_value=365, value=30)
+implied_volatility = st.sidebar.slider("Volatilità Implicita (%)", min_value=5, max_value=150, value=20)
 
 # --- Creazione Tab ---
 tab1, tab2 = st.tabs(["Analisi Strategia", "Playbook (What-If)"])
 
 # --- Contenuto Tab 1: Analisi Strategia ---
 with tab1:
-    # Esegui i calcoli solo se una strategia valida è stata selezionata
-    if strategy_details and strategy_details.get("legs"):
+    if not strategy_details.get("legs"):
+        st.subheader(f"Strategia Logica: {selected_strategy_name}")
+        st.info("Questa è una strategia concettuale o una sequenza operativa. Il profilo di rischio non è direttamente plottabile con i parametri attuali.")
+        if "sequence" in strategy_details:
+            st.markdown("##### Sequenza Operativa:")
+            for step in strategy_details["sequence"]:
+                st.markdown(f"- {step}")
+    else:
         price_range = np.linspace(underlying_price * 0.7, underlying_price * 1.3, 200)
         pnl_T, pnl_exp, greeks = calculate_pnl_and_greeks(
             strategy_legs=strategy_details["legs"],
             center_strike=center_strike,
             underlying_range=price_range,
-            days_to_expiration=days_to_expiration,
+            base_days_to_expiration=base_days_to_expiration,
             implied_volatility=implied_volatility
         )
 
         st.subheader(f"Dettaglio Strategia: {selected_strategy_name}")
         
-        # Tabella dettaglio gambe
         leg_data = []
         for leg in strategy_details["legs"]:
+            leg_strike = "N/A"
+            if leg['type'] != 'stock':
+                leg_strike = get_strike(leg, center_strike, underlying_price)
+
             leg_data.append({
                 "Direzione": leg["direction"].capitalize(),
                 "Quantità": leg["ratio"],
                 "Tipo": leg["type"].capitalize(),
-                "Strike": center_strike + leg.get("strike_offset", 0)
+                "Strike": f"{leg_strike:.2f}" if isinstance(leg_strike, (int, float)) else leg_strike,
+                "Scadenza (gg)": base_days_to_expiration + leg.get("expiry_offset", 0)
             })
         df_legs = pd.DataFrame(leg_data)
-        st.dataframe(df_legs, use_container_width=True)
+        st.dataframe(df_legs, use_container_width=True, hide_index=True)
         
         st.markdown("---")
 
-        # Dashboard delle Greche
         st.subheader("Dashboard delle Greche per Contratto")
         cols = st.columns(4)
         cols[0].metric("Delta", f"{greeks['delta']:.2f}")
@@ -103,19 +92,15 @@ with tab1:
         
         st.markdown("---")
 
-        # Grafico P/L
         st.subheader("Grafico Profit/Loss")
         pnl_chart = create_pnl_chart(
             underlying_range=price_range,
             pnl_at_T=pnl_T,
             pnl_at_expiration=pnl_exp,
             strategy_name=selected_strategy_name,
-            days_to_expiration=days_to_expiration
+            days_to_expiration=base_days_to_expiration
         )
         st.plotly_chart(pnl_chart, use_container_width=True)
-
-    else:
-        st.info("Seleziona una categoria e una strategia dalla barra laterale per iniziare.")
 
 # --- Contenuto Tab 2: Playbook (What-If) ---
 with tab2:
