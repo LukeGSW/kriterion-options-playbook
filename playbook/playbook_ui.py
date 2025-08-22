@@ -1,103 +1,103 @@
+# playbook/playbook_ui.py
 import streamlit as st
 import numpy as np
-import copy
+import plotly.graph_objects as go
+
 from core.financial_calcs import calculate_pnl_and_greeks
-from core.plotting import create_pnl_chart
-from playbook.adjustments import roll_strategy
+
+def _build_chart(x, pl_expiry_frozen, pl_now, spot):
+    fig = go.Figure()
+    # Curva a scadenza - FISSA (dallo snapshot)
+    fig.add_trace(go.Scatter(
+        x=x, y=pl_expiry_frozen, name="P/L a scadenza (fisso)", mode="lines"
+    ))
+    # Curva now (T+Δ) - dipende dagli slider
+    fig.add_trace(go.Scatter(
+        x=x, y=pl_now, name="P/L now (scenario)", mode="lines",
+        line=dict(dash="dot")
+    ))
+    # Spot scenario
+    fig.add_vline(x=float(spot), line_width=1, line_dash="dash", opacity=0.7)
+
+    fig.update_layout(
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
+        margin=dict(l=10, r=10, t=40, b=10),
+        xaxis_title="Prezzo sottostante",
+        yaxis_title="Profit / Loss"
+    )
+    return fig
 
 def render_playbook_tab():
-    """
-    Renderizza l'intera interfaccia e la logica per la tab "Playbook (What-If)".
-    """
-    st.header("⚙️ Motore di Simulazione 'What-If'")
-
-    if "snapshot" not in st.session_state:
-        st.info("Vai alla tab 'Analisi Strategia', imposta una posizione e clicca su '📸 Usa questo grafico come riferimento per il Playbook' per iniziare.")
+    st.subheader("Playbook (What-If)")
+    snap = st.session_state.get("snapshot")
+    if not snap:
+        st.info("📌 Prima crea uno snapshot dalla tab *Analisi Strategia* con il pulsante apposito.")
         return
 
-    snapshot = st.session_state.snapshot
+    # --- Lettura baseline congelata ---
+    base_params = snap["params"]
+    x_grid = np.array(base_params["underlying_range"])            # stessa griglia della baseline
+    frozen_expiry = np.array(snap["pnl_exp"])                     # curva a scadenza FISSA
+    legs = snap["legs"]
 
-    st.subheader("1. Definisci uno Scenario di Mercato (vs. Riferimento)")
-    cols = st.columns(2)
-    with cols[0]:
-        sim_price_change_percent = st.slider("Variazione Prezzo Sottostante (%)", -50, 50, 0, key="sim_price_slider")
-    with cols[1]:
-        sim_days_passed = st.slider("Giorni Trascorsi", 0, snapshot['params']['base_days_to_expiration'], 0, key="sim_days_slider")
+    S0 = float(base_params["underlying_price"])
+    base_days = int(base_params["base_days_to_expiration"])
+    base_iv = float(base_params["implied_volatility"])
+    center_strike = float(base_params["center_strike"])
 
-    # Determina la strategia da usare (modificata o quella dello snapshot)
-    if "current_adjusted_strategy" in st.session_state:
-        strategy_to_simulate = st.session_state.current_adjusted_strategy
-    else:
-        strategy_to_simulate = snapshot
+    # Slider con limiti coerenti con la griglia 'congelata'
+    s_min = float(np.min(x_grid))
+    s_max = float(np.max(x_grid))
+    step_s = max(0.01, (s_max - s_min) / 200.0)
 
-    # Prepara i parametri per la simulazione
-    simulated_params = copy.deepcopy(snapshot['params'])
-    new_underlying_price = simulated_params['underlying_price'] * (1 + sim_price_change_percent / 100.0)
-    new_price_range = np.linspace(new_underlying_price * 0.7, new_underlying_price * 1.3, 200)
-    simulated_params.update({
-        'underlying_price': new_underlying_price,
-        'underlying_range': new_price_range,
-        'base_days_to_expiration': snapshot['params']['base_days_to_expiration'] - sim_days_passed
-    })
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        S_now = st.slider("Prezzo spot scenario", min_value=s_min, max_value=s_max,
+                          value=float(S0), step=step_s, key="whatif_S")
+    with c2:
+        days_passed = st.slider("Giorni trascorsi", 0, 365, 0, 1, key="whatif_days")
+    with c3:
+        iv_shift = st.slider("Shift IV (%)", -50, 50, 0, 1, key="whatif_iv")
 
-    # Calcola P/L e Greche per la strategia simulata
-    pnl_T_sim, pnl_exp_sim, greeks_sim = calculate_pnl_and_greeks(
-        strategy_legs=strategy_to_simulate['legs'],
-        **simulated_params
+    # --- Calcolo esclusivamente del P/L 'at now' ---
+    remaining_days = max(0, base_days - int(days_passed))
+    iv_scn = max(0.01, base_iv * (1.0 + iv_shift / 100.0))
+
+    scenario_params = {
+        "center_strike": center_strike,          # NON cambia
+        "underlying_range": x_grid,              # identica alla baseline
+        "base_days_to_expiration": remaining_days,
+        "implied_volatility": iv_scn,
+        "underlying_price": float(S_now)         # usato per greche/marker
+    }
+
+    pnl_T_now, _pnl_exp_ignore, greeks = calculate_pnl_and_greeks(
+        strategy_legs=legs, **scenario_params
     )
-    
-    st.markdown("---")
-    sim_cols = st.columns([1.5, 1, 1, 1, 1])
-    with sim_cols[0]:
-        idx = np.abs(new_price_range - new_underlying_price).argmin()
-        pnl_at_sim_price = pnl_T_sim[idx]
-        st.metric("P/L Attuale (Simulato)", f"{pnl_at_sim_price:,.2f} $")
-    with sim_cols[1]:
-        st.metric("Delta", f"{greeks_sim['delta']:.2f}")
-    with sim_cols[2]:
-        st.metric("Gamma", f"{greeks_sim['gamma']:.2f}")
-    with sim_cols[3]:
-        st.metric("Theta", f"{greeks_sim['theta']:.2f}")
-    with sim_cols[4]:
-        st.metric("Vega", f"{greeks_sim['vega']:.2f}")
+    # IMPORTANTISSIMO: ignoriamo QUALSIASI 'pnl_exp' di scenario
 
-    st.markdown("---")
-    st.subheader("2. Applica un Aggiustamento Strutturale")
-    roll_cols = st.columns(3)
-    with roll_cols[0]:
-        if st.button("Rolla su (Roll Up) 📈"):
-            new_legs = roll_strategy(strategy_to_simulate['legs'], 5)
-            if new_legs:
-                st.session_state.current_adjusted_strategy = {"name": f"{snapshot['name']} (Modificato)", "legs": new_legs}
-                st.rerun()
-    with roll_cols[1]:
-        if st.button("Rolla giù (Roll Down) 📉"):
-            new_legs = roll_strategy(strategy_to_simulate['legs'], -5)
-            if new_legs:
-                st.session_state.current_adjusted_strategy = {"name": f"{snapshot['name']} (Modificato)", "legs": new_legs}
-                st.rerun()
-    with roll_cols[2]:
-        if st.button("Reset Aggiustamenti"):
-            if "current_adjusted_strategy" in st.session_state:
-                del st.session_state.current_adjusted_strategy
-            st.rerun()
+    # --- Pannello 'At Now' ---
+    m1, m2, m3, m4, m5 = st.columns(5)
+    m1.metric("Spot", f"{S_now:.2f}")
+    m2.metric("Giorni residui", f"{remaining_days}")
+    m3.metric("IV (%)", f"{iv_scn:.1f}")
+    m4.metric("Delta", f"{greeks['delta']:.2f}")
+    m5.metric("Theta", f"{greeks['theta']:.2f}")
+    g1, g2, g3 = st.columns(3)
+    g1.metric("Gamma", f"{greeks['gamma']:.4f}")
+    g2.metric("Vega", f"{greeks['vega']:.2f}")
+    g3.caption("La curva a scadenza resta congelata; muovendo gli slider varia solo il P/L 'now'.")
 
-    st.markdown("---")
-    st.subheader("3. Grafico Comparativo Profit/Loss")
+    # --- Grafico ---
+    fig = _build_chart(x_grid, frozen_expiry, np.array(pnl_T_now), S_now)
+    st.plotly_chart(fig, use_container_width=True)
 
-    # LA CHIAMATA ALLA FUNZIONE DI PLOTTING ORA È PULITA E CORRETTA
-    pnl_chart = create_pnl_chart(
-        # Dati per le curve principali (blu e rossa), che sono sempre quelle simulate
-        underlying_range=simulated_params['underlying_range'],
-        pnl_at_T=pnl_T_sim,
-        pnl_at_expiration=pnl_exp_sim,
-        strategy_name=f"{strategy_to_simulate['name']} (Simulazione)",
-        days_to_expiration=simulated_params['base_days_to_expiration'],
-        
-        # Dati per le curve di riferimento (grigie), che sono sempre quelle dello snapshot
-        original_pnl_at_T=snapshot['pnl_T'],
-        original_pnl_at_expiration=snapshot['pnl_exp'],
-        original_underlying_range=snapshot['range']
-    )
-
-    st.plotly_chart(pnl_chart, use_container_width=True)
+    # Opzionale: tasto per resettare lo snapshot
+    st.divider()
+    if st.button("❌ Rimuovi snapshot (riparti da Analisi Strategia)", key="clear_snapshot"):
+        del st.session_state["snapshot"]
+        # pulizia dei controlli what-if
+        for k in list(st.session_state.keys()):
+            if str(k).startswith("whatif_"):
+                del st.session_state[k]
+        st.success("Snapshot rimosso. Torna su 'Analisi Strategia' per fissarne uno nuovo.")
