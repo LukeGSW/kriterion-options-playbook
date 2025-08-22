@@ -4,7 +4,6 @@ import numpy as np
 import pandas as pd
 import copy
 from datetime import datetime
-
 from strategies.strategy_database import STRATEGY_DATABASE
 from core.financial_calcs import calculate_pnl_and_greeks, get_strike
 from core.plotting import create_pnl_chart
@@ -139,24 +138,28 @@ with tab1:
         st.plotly_chart(pnl_chart, use_container_width=True)
 
         st.markdown("---")
-        st.subheader("Playbook")
-        if st.button("📸 Usa questo grafico come riferimento per il Playbook"):
-            # --- FIX: crea copie immutabili per evitare mutazioni in-place ---
-            snap_params = copy.deepcopy(calc_params)
-            # garantisco che la griglia sia una copia fisica
-            snap_params["underlying_range"] = np.array(calc_params["underlying_range"], copy=True)
+st.subheader("Playbook")
+if st.button("📸 Usa questo grafico come riferimento per il Playbook", key="lock_baseline"):
+    # Copie profonde + copie fisiche degli array per evitare mutazioni in-place
+    snap_params = copy.deepcopy(calc_params)
+    snap_params["underlying_range"] = np.array(calc_params["underlying_range"], copy=True)
 
-            st.session_state.snapshot = {
-                "name": final_strategy_name,
-                "legs": copy.deepcopy(modified_legs),
-                "params": snap_params,
-                # copie fisiche degli array, così NON cambiano quando muovi gli slider
-                "pnl_T":   np.array(pnl_T,  copy=True),
-                "pnl_exp": np.array(pnl_exp, copy=True)
-            }
-            if "current_adjusted_strategy" in st.session_state:
-                del st.session_state.current_adjusted_strategy
-            st.success(f"Snapshot creato per '{final_strategy_name}'. Vai alla tab 'Playbook' per la simulazione.")
+    st.session_state.snapshot = {
+        "timestamp": datetime.now().isoformat(timespec="seconds"),
+        "name": final_strategy_name,
+        "legs": copy.deepcopy(modified_legs),
+        "params": snap_params,        # center_strike, underlying_range, base_days_to_expiration, implied_volatility, underlying_price
+        "pnl_T":   np.array(pnl_T,  copy=True),
+        "pnl_exp": np.array(pnl_exp, copy=True)   # <<< curva a scadenza CONGELATA
+    }
+
+    # Pulizia stato What-If (chiavi isolate)
+    for k in list(st.session_state.keys()):
+        if str(k).startswith("whatif_"):
+            del st.session_state[k]
+
+    st.success(f"Snapshot creato per '{final_strategy_name}'. Vai alla tab 'Playbook'.")
+
 
 
         st.subheader("Analisi Qualitativa della Strategia")
