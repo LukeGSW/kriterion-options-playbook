@@ -71,8 +71,8 @@ with tab1:
     else:
         price_range = np.linspace(underlying_price * 0.7, underlying_price * 1.3, 200)
         
+        # CORREZIONE: 'strategy_legs' non è più nel dizionario, ma passato a parte
         calc_params = {
-            "strategy_legs": modified_legs,
             "center_strike": center_strike,
             "underlying_range": price_range,
             "base_days_to_expiration": base_days_to_expiration,
@@ -80,11 +80,10 @@ with tab1:
             "underlying_price": underlying_price
         }
 
-        pnl_T, pnl_exp, greeks = calculate_pnl_and_greeks(**calc_params)
+        pnl_T, pnl_exp, greeks = calculate_pnl_and_greeks(strategy_legs=modified_legs, **calc_params)
 
         st.subheader(f"Dettaglio Strategia: {final_strategy_name}")
         
-        # ... (codice tabella e greche invariato) ...
         leg_data = []
         for leg in modified_legs:
             leg_strike = "N/A"
@@ -100,6 +99,7 @@ with tab1:
             })
         df_legs = pd.DataFrame(leg_data)
         st.dataframe(df_legs, use_container_width=True, hide_index=True)
+        
         st.markdown("---")
         st.subheader("Dashboard delle Greche per Contratto")
         cols = st.columns(4)
@@ -107,8 +107,8 @@ with tab1:
         cols[1].metric("Gamma", f"{greeks['gamma']:.2f}")
         cols[2].metric("Theta", f"{greeks['theta']:.2f}")
         cols[3].metric("Vega", f"{greeks['vega']:.2f}")
+        
         st.markdown("---")
-
         st.subheader("Grafico Profit/Loss")
         pnl_chart = create_pnl_chart(
             underlying_range=price_range, pnl_at_T=pnl_T, pnl_at_expiration=pnl_exp,
@@ -118,7 +118,6 @@ with tab1:
 
         st.markdown("---")
         
-        # --- NUOVO PULSANTE SNAPSHOT SPOSTATO QUI ---
         st.subheader("Playbook")
         if st.button("📸 Usa questo grafico come riferimento per il Playbook"):
             st.session_state.snapshot = {
@@ -131,7 +130,6 @@ with tab1:
             }
             st.success(f"Snapshot creato per '{final_strategy_name}'. Vai alla tab 'Playbook' per la simulazione.")
 
-        # ... (codice analisi qualitativa invariato) ...
         st.subheader("Analisi Qualitativa della Strategia")
         if "analysis" in strategy_details and isinstance(strategy_details["analysis"], dict):
             analysis = strategy_details["analysis"]
