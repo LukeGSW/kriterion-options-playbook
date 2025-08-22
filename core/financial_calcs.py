@@ -52,25 +52,25 @@ def calculate_pnl_and_greeks(
             direction_mult = 1 if leg['direction'] == 'long' else -1
             stock_pnl = (underlying_range - current_underlying_price) * direction_mult
             total_delta += 1 * leg["ratio"] * direction_mult
+            # Il P/L dello stock è lineare e non dipende dal tempo, quindi è lo stesso a T e a scadenza
             pnl_at_expiration += stock_pnl
             pnl_at_T += stock_pnl
             continue
 
-        # --- GESTIONE SCADENZE E STRIKE DINAMICI ---
+        # Gestione scadenze e strike dinamici
         leg_days_to_expiration = base_days_to_expiration + leg.get("expiry_offset", 0)
         T_leg = leg_days_to_expiration / 365.0
-        T_leg = max(T_leg, 0.0001) # Evita T=0 per calcoli BSM
+        T_leg = max(T_leg, 0.0001)
 
         strike = get_strike(leg, center_strike, current_underlying_price)
         flag = OPTION_TYPE[leg["type"]]
         
-        # Calcolo costo iniziale
+        # Calcolo costo iniziale e Greche (solo se la gamba non è già scaduta)
         if leg_days_to_expiration > 0:
             leg_price = black_scholes_merton(flag, current_underlying_price, strike, T_leg, interest_rate, iv, q)
             cost_multiplier = -1 if leg["direction"] == "long" else 1
             strategy_cost += leg_price * leg["ratio"] * cost_multiplier
         
-            # Calcolo Greche
             d = delta(flag, current_underlying_price, strike, T_leg, interest_rate, iv, q)
             g = gamma(flag, current_underlying_price, strike, T_leg, interest_rate, iv, q)
             t = theta(flag, current_underlying_price, strike, T_leg, interest_rate, iv, q)
@@ -82,36 +82,48 @@ def calculate_pnl_and_greeks(
             total_theta += t * leg["ratio"] * short_multiplier
             total_vega += v * leg["ratio"] * short_multiplier
 
-        # Calcolo P/L a scadenza (considera solo la gamba con la scadenza più vicina)
-        if leg_days_to_expiration == base_days_to_expiration:
-            payoff_expiration = np.zeros_like(underlying_range)
-            if leg["type"] == "call":
-                payoff_expiration = np.maximum(0, underlying_range - strike)
-            else:
-                payoff_expiration = np.maximum(0, strike - underlying_range)
+        # --- INIZIO BLOCCO LOGICA CORRETTA PER P/L A SCADENZA ---
+        days_remaining_at_first_expiry = leg_days_to_expiration - base_days_to_expiration
+        
+        if days_remaining_at_first_expiry == 0:
+            # Questa gamba scade ORA. Calcolo il suo valore intrinseco.
+            payoff = np.maximum(0, underlying_range - strike) if leg["type"] == "call" else np.maximum(0, strike - underlying_range)
             if leg["direction"] == "short":
-                payoff_expiration *= -1
-            pnl_at_expiration += payoff_expiration * leg["ratio"]
+                payoff *= -1
+            pnl_at_expiration += payoff * leg["ratio"]
+        
+        elif days_remaining_at_first_expiry > 0:
+            # Questa gamba NON è ancora scaduta. Calcolo il suo valore teorico residuo.
+            T_remaining = days_remaining_at_first_expiry / 365.0
+            
+            theoretical_value_list = []
+            for price_point in underlying_range:
+                price = black_scholes_merton(flag, price_point, strike, T_remaining, interest_rate, iv, q)
+                theoretical_value_list.append(price)
+            
+            theoretical_value = np.array(theoretical_value_list)
+            if leg["direction"] == "short":
+                theoretical_value *= -1
+            pnl_at_expiration += theoretical_value * leg["ratio"]
+        # --- FINE BLOCCO LOGICA CORRETTA ---
 
-        # Calcolo P/L a T
+        # Calcolo P/L a T (curva rossa) - la logica era già corretta
         leg_pnl_at_T_list = []
         if leg_days_to_expiration > 0:
             for price_point in underlying_range:
                 option_price = black_scholes_merton(flag, price_point, strike, T_leg, interest_rate, iv, q)
                 leg_pnl_at_T_list.append(option_price)
             option_price_at_T = np.array(leg_pnl_at_T_list)
-        else: # Opzione già scaduta
-            if leg["type"] == "call":
-                option_price_at_T = np.maximum(0, underlying_range - strike)
-            else:
-                option_price_at_T = np.maximum(0, strike - underlying_range)
-
+        else:
+            option_price_at_T = np.maximum(0, underlying_range - strike) if leg["type"] == "call" else np.maximum(0, strike - underlying_range)
+        
         if leg["direction"] == "short":
             option_price_at_T *= -1
         pnl_at_T += option_price_at_T * leg["ratio"]
 
+    # Finalizzazione P/L e Greche
     pnl_at_T += strategy_cost
-    pnl_at_expiration += strategy_cost # Aggiunto costo solo per le gambe che scadono
+    pnl_at_expiration += strategy_cost
     
     final_pnl_at_T = pnl_at_T * CONTRACT_MULTIPLIER
     final_pnl_at_expiration = pnl_at_expiration * CONTRACT_MULTIPLIER
