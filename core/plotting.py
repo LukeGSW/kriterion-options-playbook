@@ -8,27 +8,30 @@ def create_pnl_chart(
     strategy_name, 
     days_to_expiration,
     original_pnl_at_T=None,
-    original_pnl_at_expiration=None
+    original_pnl_at_expiration=None,
+    original_underlying_range=None  # <-- PARAMETRO AGGIUNTO
     ):
     """
     Genera il grafico P/L. Se vengono forniti i dati originali,
-    crea un grafico comparativo.
+    crea un grafico comparativo usando il suo range di prezzi specifico.
     """
     fig = go.Figure()
 
-    # Se ci sono dati originali, plottali prima in grigio trasparente
-    if original_pnl_at_expiration is not None:
+    # Se ci sono dati originali, plottali prima usando il loro asse X
+    if original_pnl_at_expiration is not None and original_underlying_range is not None:
+        x_axis_orig = original_underlying_range
         fig.add_trace(go.Scatter(
-            x=underlying_range, 
+            x=x_axis_orig, 
             y=original_pnl_at_expiration, 
             mode='lines', 
             name='P/L Originale (Scadenza)',
             line=dict(color='grey', width=2, dash='dot'),
             opacity=0.5
         ))
-    if original_pnl_at_T is not None:
-         fig.add_trace(go.Scatter(
-            x=underlying_range, 
+    if original_pnl_at_T is not None and original_underlying_range is not None:
+        x_axis_orig = original_underlying_range
+        fig.add_trace(go.Scatter(
+            x=x_axis_orig, 
             y=original_pnl_at_T, 
             mode='lines', 
             name='P/L Originale (T)',
