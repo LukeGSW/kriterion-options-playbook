@@ -14,14 +14,18 @@ def render_playbook_tab(strategy_details, base_params, current_legs):
         st.warning("Seleziona una strategia valida dalla tab 'Analisi Strategia' per iniziare una simulazione.")
         return
 
+    # --- NUOVO: Blocco di validazione per snapshot di versioni precedenti ---
+    # Se lo snapshot esiste ma non ha i dati pre-calcolati, viene considerato invalido e rimosso.
+    if "snapshot" in st.session_state and "pnl_T" not in st.session_state.snapshot:
+        del st.session_state.snapshot
+        st.warning("È stato rilevato uno snapshot di una versione precedente e rimosso. Per favore, clicca di nuovo su 'Fissa Strategia'.")
+
     # Pulsante per creare/aggiornare lo snapshot di riferimento
     if st.button("📸 Fissa Strategia Corrente come Riferimento"):
-        # Esegui il calcolo UNA SOLA VOLTA al momento dello snapshot
         pnl_T_snapshot, pnl_exp_snapshot, _ = calculate_pnl_and_greeks(
             strategy_legs=current_legs,
             **base_params['calc_params']
         )
-        # Salva i dati GIÀ CALCOLATI, non solo i parametri
         st.session_state.snapshot = {
             "name": base_params['name'],
             "legs": current_legs,
@@ -30,18 +34,18 @@ def render_playbook_tab(strategy_details, base_params, current_legs):
             "pnl_exp": pnl_exp_snapshot,
             "range": base_params['calc_params']['underlying_range']
         }
-        # Resetta gli aggiustamenti quando si crea un nuovo snapshot
         if "current_adjusted_strategy" in st.session_state:
             del st.session_state.current_adjusted_strategy
         st.success(f"Snapshot creato per '{base_params['name']}'. Ora puoi usare gli slider e gli aggiustamenti.")
+        st.rerun() # Forza un rerun per mostrare subito la simulazione
     
     st.markdown("---")
 
-    # Tutta la logica di simulazione viene eseguita solo se lo snapshot esiste
     if "snapshot" not in st.session_state:
         st.info("Imposta una strategia e i parametri nella prima tab, poi clicca il pulsante qui sopra per creare uno snapshot e iniziare la simulazione.")
         return
 
+    # --- Sezione di Simulazione ---
     snapshot = st.session_state.snapshot
 
     st.subheader("1. Definisci uno Scenario di Mercato (vs. Snapshot)")
@@ -114,7 +118,6 @@ def render_playbook_tab(strategy_details, base_params, current_legs):
         pnl_at_expiration=pnl_exp_main,
         strategy_name=f"{current_strategy_name} (Simulazione)",
         days_to_expiration=simulated_params['base_days_to_expiration'],
-        # USA I DATI PRE-CALCOLATI DALLO SNAPSHOT
         original_pnl_at_T=snapshot['pnl_T'],
         original_pnl_at_expiration=snapshot['pnl_exp'],
         original_underlying_range=snapshot['range']
