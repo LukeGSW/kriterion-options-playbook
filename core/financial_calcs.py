@@ -2,9 +2,8 @@ import numpy as np
 from py_vollib.black_scholes_merton import black_scholes_merton
 from py_vollib.black_scholes_merton.greeks.analytical import delta, gamma, theta, vega
 
-# Flag per il tipo di opzione, richiesto da py_vollib
 OPTION_TYPE = {'call': 'c', 'put': 'p'}
-CONTRACT_MULTIPLIER = 100 # Moltiplicatore standard per opzioni su azioni
+CONTRACT_MULTIPLIER = 100
 
 def calculate_pnl_and_greeks(
     strategy_legs, 
@@ -15,9 +14,6 @@ def calculate_pnl_and_greeks(
     interest_rate=0.01,
     dividend_yield=0.0
     ):
-    """
-    Calcola P/L e Greche, applicando il moltiplicatore del contratto (x100).
-    """
     pnl_at_T = np.zeros_like(underlying_range)
     pnl_at_expiration = np.zeros_like(underlying_range)
     
@@ -34,6 +30,23 @@ def calculate_pnl_and_greeks(
     current_underlying_price = underlying_range[np.abs(underlying_range - center_strike).argmin()]
 
     for leg in strategy_legs:
+        # --- NUOVA LOGICA PER GESTIRE IL SOTTOSTANTE ---
+        if leg["type"] == 'stock':
+            stock_pnl = np.zeros_like(underlying_range)
+            if leg['direction'] == 'long':
+                # Il P/L di una posizione long stock è (prezzo finale - prezzo iniziale)
+                stock_pnl = underlying_range - current_underlying_price
+                total_delta += 1 * leg["ratio"] # Delta di 100 azioni
+            elif leg['direction'] == 'short':
+                # Il P/L di una posizione short stock è (prezzo iniziale - prezzo finale)
+                stock_pnl = current_underlying_price - underlying_range
+                total_delta -= 1 * leg["ratio"] # Delta di -100 azioni
+
+            pnl_at_expiration += stock_pnl
+            pnl_at_T += stock_pnl # Per lo stock, il P/L non dipende dal tempo
+            continue # Passa alla prossima gamba
+
+        # --- LOGICA ESISTENTE PER LE OPZIONI ---
         strike = center_strike + leg.get("strike_offset", 0)
         flag = OPTION_TYPE[leg["type"]]
         
@@ -75,7 +88,6 @@ def calculate_pnl_and_greeks(
     pnl_at_T += strategy_cost
     pnl_at_expiration += strategy_cost
     
-    # Applica il moltiplicatore del contratto a tutti i risultati finali.
     final_pnl_at_T = pnl_at_T * CONTRACT_MULTIPLIER
     final_pnl_at_expiration = pnl_at_expiration * CONTRACT_MULTIPLIER
     
