@@ -4,9 +4,11 @@ import numpy as np
 import pandas as pd
 import copy
 from datetime import datetime
+
 from strategies.strategy_database import STRATEGY_DATABASE
 from core.financial_calcs import calculate_pnl_and_greeks, get_strike
 from core.plotting import create_pnl_chart
+from playbook.playbook_ui import render_playbook_tab
 
 # =========================
 # CONFIGURAZIONE PAGINA
@@ -138,29 +140,29 @@ with tab1:
         st.plotly_chart(pnl_chart, use_container_width=True)
 
         st.markdown("---")
-st.subheader("Playbook")
-if st.button("📸 Usa questo grafico come riferimento per il Playbook", key="lock_baseline"):
-    # Copie profonde + copie fisiche degli array per evitare mutazioni in-place
-    snap_params = copy.deepcopy(calc_params)
-    snap_params["underlying_range"] = np.array(calc_params["underlying_range"], copy=True)
+        st.subheader("Playbook")
 
-    st.session_state.snapshot = {
-        "timestamp": datetime.now().isoformat(timespec="seconds"),
-        "name": final_strategy_name,
-        "legs": copy.deepcopy(modified_legs),
-        "params": snap_params,        # center_strike, underlying_range, base_days_to_expiration, implied_volatility, underlying_price
-        "pnl_T":   np.array(pnl_T,  copy=True),
-        "pnl_exp": np.array(pnl_exp, copy=True)   # <<< curva a scadenza CONGELATA
-    }
+        # Bottone: congela baseline per il What-If
+        if st.button("📸 Usa questo grafico come riferimento per il Playbook", key="lock_baseline"):
+            # Copie profonde + copie fisiche degli array per evitare mutazioni in-place
+            snap_params = copy.deepcopy(calc_params)
+            snap_params["underlying_range"] = np.array(calc_params["underlying_range"], copy=True)
 
-    # Pulizia stato What-If (chiavi isolate)
-    for k in list(st.session_state.keys()):
-        if str(k).startswith("whatif_"):
-            del st.session_state[k]
+            st.session_state.snapshot = {
+                "timestamp": datetime.now().isoformat(timespec="seconds"),
+                "name": final_strategy_name,
+                "legs": copy.deepcopy(modified_legs),
+                "params": snap_params,        # center_strike, underlying_range, base_days_to_expiration, implied_volatility, underlying_price
+                "pnl_T":   np.array(pnl_T,  copy=True),
+                "pnl_exp": np.array(pnl_exp, copy=True)   # <<< curva a scadenza CONGELATA
+            }
 
-    st.success(f"Snapshot creato per '{final_strategy_name}'. Vai alla tab 'Playbook'.")
+            # Pulizia stato What-If (chiavi isolate)
+            for k in list(st.session_state.keys()):
+                if str(k).startswith("whatif_"):
+                    del st.session_state[k]
 
-
+            st.success(f"Snapshot creato per '{final_strategy_name}'. Vai alla tab 'Playbook'.")
 
         st.subheader("Analisi Qualitativa della Strategia")
         if "analysis" in strategy_details and isinstance(strategy_details["analysis"], dict):
@@ -175,102 +177,7 @@ if st.button("📸 Usa questo grafico come riferimento per il Playbook", key="lo
             st.warning("Dati di analisi qualitativa non trovati.")
 
 # =========================================
-# TAB 2: PLAYBOOK (WHAT-IF) — SOLO P/L NOW
+# TAB 2: PLAYBOOK (WHAT-IF)
 # =========================================
 with tab2:
-    st.subheader("Playbook (What-If)")
-    snap = st.session_state.get("snapshot", None)
-
-    if not snap:
-        st.info("📌 Prima crea uno **snapshot** dalla tab *Analisi Strategia* con il pulsante '📸 Usa questo grafico come riferimento per il Playbook'.")
-    else:
-        # Header con info snapshot
-        st.caption(f"Baseline fissata da: **{snap['name']}** — Snapshot: {snap['timestamp']}")
-        base_params = snap["params"]
-        base_days = int(base_params["base_days_to_expiration"])
-        base_iv = float(base_params["implied_volatility"])
-        base_S = float(base_params["underlying_price"])
-        base_center = float(base_params["center_strike"])
-        x_grid = base_params["underlying_range"]
-        frozen_expiry_curve = snap["pnl_exp"]  # <<< NON si ricalcola mai in questa tab
-
-        # Controlli What-If con chiavi dedicate
-        c1, c2, c3 = st.columns([1, 1, 1])
-        with c1:
-            whatif_S = st.slider(
-                "Prezzo spot scenario",
-                min_value=float(max(0.01, base_S * 0.3)),
-                max_value=float(base_S * 2.0),
-                value=float(base_S),
-                step=0.5,
-                key="whatif_S"
-            )
-        with c2:
-            whatif_days_passed = st.slider(
-                "Giorni trascorsi",
-                min_value=0,
-                max_value=365,
-                value=0,
-                step=1,
-                key="whatif_days"
-            )
-        with c3:
-            whatif_iv_shift = st.slider(
-                "Shift IV (%)",
-                min_value=-50,
-                max_value=50,
-                value=0,
-                step=1,
-                key="whatif_iv"
-            )
-
-        # Calcolo parametri scenario (SOLO P/L NOW)
-        # Giorni residui: base_days - giorni trascorsi (>= 0)
-        remaining_days = max(0, base_days - int(whatif_days_passed))
-        scenario_iv = max(0.01, base_iv * (1.0 + whatif_iv_shift / 100.0))
-
-        scenario_params = {
-            "center_strike": base_center,          # NON si sposta
-            "underlying_range": x_grid,            # stessa griglia della baseline
-            "base_days_to_expiration": remaining_days,
-            "implied_volatility": scenario_iv,
-            "underlying_price": float(whatif_S)
-        }
-
-        # Ricalcolo SOLO della curva "now" con tempo residuo
-        pnl_T_scn, _, greeks_scn = calculate_pnl_and_greeks(
-            strategy_legs=snap["legs"],
-            **scenario_params
-        )
-        # NB: ignoriamo il secondo valore (pnl_exp) di scenario: la scadenza resta congelata
-
-        st.markdown("---")
-        st.subheader("Greche (Scenario)")
-        cols2 = st.columns(4)
-        cols2[0].metric("Delta", f"{greeks_scn['delta']:.2f}")
-        cols2[1].metric("Gamma", f"{greeks_scn['gamma']:.2f}")
-        cols2[2].metric("Theta", f"{greeks_scn['theta']:.2f}")
-        cols2[3].metric("Vega",  f"{greeks_scn['vega']:.2f}")
-
-        st.markdown("---")
-        st.subheader("Grafico Profit/Loss — Curva a Scadenza FISSA (baseline) + P/L Now (scenario)")
-        chart = create_pnl_chart(
-            underlying_range=x_grid,
-            pnl_at_T=pnl_T_scn,                     # << SOLO questa cambia
-            pnl_at_expiration=frozen_expiry_curve,  # << FISSA dalla baseline
-            strategy_name=snap["name"],
-            days_to_expiration=remaining_days
-        )
-        st.plotly_chart(chart, use_container_width=True)
-
-        # Pulsante per invalidare lo snapshot (se l'utente vuole ripartire)
-        st.markdown("---")
-        c_left, c_right = st.columns([1, 3])
-        with c_left:
-            if st.button("❌ Rimuovi snapshot", key="clear_snapshot"):
-                del st.session_state["snapshot"]
-                # pulizia controlli what-if
-                for k in list(st.session_state.keys()):
-                    if str(k).startswith("whatif_"):
-                        del st.session_state[k]
-                st.success("Snapshot rimosso. Torna su 'Analisi Strategia' per fissarne uno nuovo.")
+    render_playbook_tab()
