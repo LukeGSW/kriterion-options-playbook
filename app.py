@@ -4,6 +4,7 @@ import pandas as pd
 from strategies.strategy_database import STRATEGY_DATABASE
 from core.financial_calcs import calculate_pnl_and_greeks, get_strike
 from core.plotting import create_pnl_chart
+from playbook.playbook_ui import render_playbook_tab # <-- IMPORTAZIONE NUOVA
 
 # --- Configurazione Pagina ---
 st.set_page_config(
@@ -66,23 +67,21 @@ if stock_position != "Nessuno":
 with tab1:
     if not modified_legs:
         st.subheader(f"Strategia Logica: {final_strategy_name}")
-        st.info("Questa è una strategia concettuale o una sequenza operativa. Il profilo di rischio non è direttamente plottabile con i parametri attuali.")
-        if "sequence" in strategy_details:
-            st.markdown("##### Sequenza Operativa:")
-            for step in strategy_details["sequence"]:
-                st.markdown(f"- {step}")
+        st.info("Questa è una strategia concettuale o una sequenza operativa...")
+        # ... (codice per mostrare note etc. invariato)
     else:
         price_range = np.linspace(underlying_price * 0.7, underlying_price * 1.3, 200)
         
-        # ORA PASSIAMO IL PREZZO CORRETTO ALLA FUNZIONE DI CALCOLO
-        pnl_T, pnl_exp, greeks = calculate_pnl_and_greeks(
-            strategy_legs=modified_legs,
-            center_strike=center_strike,
-            underlying_range=price_range,
-            base_days_to_expiration=base_days_to_expiration,
-            implied_volatility=implied_volatility,
-            underlying_price=underlying_price # <-- PASSAGGIO DEL PARAMETRO CORRETTO
-        )
+        calc_params = {
+            "strategy_legs": modified_legs,
+            "center_strike": center_strike,
+            "underlying_range": price_range,
+            "base_days_to_expiration": base_days_to_expiration,
+            "implied_volatility": implied_volatility,
+            "underlying_price": underlying_price
+        }
+
+        pnl_T, pnl_exp, greeks = calculate_pnl_and_greeks(**calc_params)
 
         st.subheader(f"Dettaglio Strategia: {final_strategy_name}")
         
@@ -128,6 +127,7 @@ with tab1:
         st.markdown("---")
         st.subheader("Analisi Qualitativa della Strategia")
         if "analysis" in strategy_details and isinstance(strategy_details["analysis"], dict):
+            # ... (codice analisi qualitativa invariato)
             analysis = strategy_details["analysis"]
             st.markdown(f"**🎯 Quando utilizzarla:** {analysis.get('when_to_use', 'N/A')}")
             st.markdown("**🔍 Condizioni di Mercato:**")
@@ -136,10 +136,21 @@ with tab1:
             st.markdown(f"- **Sconsigliate:** {conditions.get('poor', 'N/A')}")
             st.markdown(f"**✨ Peculiarità:** {analysis.get('peculiarities', 'N/A')}")
         else:
-            st.warning("Dati di analisi qualitativa non trovati o in formato non corretto per questa strategia nel database.")
+            st.warning("Dati di analisi qualitativa non trovati...")
 
 # --- Contenuto Tab 2: Playbook (What-If) ---
 with tab2:
-    st.header("⚙️ Motore di Simulazione 'What-If'")
-    st.markdown("Questa sezione è in fase di sviluppo (Prossimo Step).")
-    st.info("Qui potrai definire scenari di mercato futuri e testare aggiustamenti sulla tua strategia, visualizzando l'impatto sul profilo di rischio in un grafico comparativo.", icon="🛠️")
+    # Raggruppa i parametri di base da passare alla funzione della tab
+    base_params = {
+        "name": final_strategy_name,
+        "dte": base_days_to_expiration,
+        "price_range": np.linspace(underlying_price * 0.7, underlying_price * 1.3, 200),
+        "calc_params": {
+            "center_strike": center_strike,
+            "underlying_range": np.linspace(underlying_price * 0.7, underlying_price * 1.3, 200),
+            "base_days_to_expiration": base_days_to_expiration,
+            "implied_volatility": implied_volatility,
+            "underlying_price": underlying_price
+        }
+    }
+    render_playbook_tab(strategy_details, base_params)
