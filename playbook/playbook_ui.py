@@ -4,36 +4,33 @@ from core.financial_calcs import calculate_pnl_and_greeks
 from core.plotting import create_pnl_chart
 from playbook.adjustments import roll_strategy
 
-def render_playbook_tab(strategy_details, base_params):
+def render_playbook_tab(strategy_details, base_params, current_legs): # <-- RICEVE LE GAMBE CORRENTI
     """
     Renderizza l'intera interfaccia e la logica per la tab "Playbook (What-If)".
     """
     st.header("⚙️ Motore di Simulazione 'What-If'")
 
-    if not strategy_details or not strategy_details.get("legs"):
+    if not strategy_details or not current_legs:
         st.warning("Seleziona una strategia valida dalla tab 'Analisi Strategia' per iniziare una simulazione.")
         return
 
-    # --- NUOVO PULSANTE PER CREARE LO SNAPSHOT DI RIFERIMENTO ---
-    if st.button("📸 Fissa Strategia Originale come Riferimento"):
+    # Pulsante per creare/aggiornare lo snapshot di riferimento
+    if st.button("📸 Fissa Strategia Corrente come Riferimento"):
         st.session_state.snapshot = {
             "name": base_params['name'],
-            "legs": base_params['calc_params']['strategy_legs'], # Usa le gambe potenzialmente modificate (con stock)
+            "legs": current_legs, # <-- USA LE GAMBE PASSATE CORRETTAMENTE
             "params": base_params['calc_params'].copy()
         }
-        # Resetta gli aggiustamenti quando si crea un nuovo snapshot
         if "current_adjusted_strategy" in st.session_state:
             del st.session_state.current_adjusted_strategy
         st.success(f"Snapshot creato per '{base_params['name']}'. Ora puoi usare gli slider e gli aggiustamenti.")
     
     st.markdown("---")
 
-    # Tutta la logica di simulazione viene eseguita solo se lo snapshot esiste
     if "snapshot" not in st.session_state:
         st.info("Imposta una strategia e i parametri nella prima tab, poi clicca il pulsante qui sopra per creare uno snapshot e iniziare la simulazione.")
         return
 
-    # --- Sezione di Simulazione ---
     snapshot = st.session_state.snapshot
 
     st.subheader("1. Definisci uno Scenario di Mercato (vs. Snapshot)")
@@ -43,12 +40,9 @@ def render_playbook_tab(strategy_details, base_params):
     with cols[1]:
         sim_days_passed = st.slider("Giorni Trascorsi", 0, snapshot['params']['base_days_to_expiration'], 0, key="sim_days_slider")
 
-    # Determina quali gambe usare per l'aggiustamento: le ultime modificate o quelle dello snapshot
     legs_to_adjust = st.session_state.get("current_adjusted_strategy", snapshot)["legs"]
     current_strategy_name = st.session_state.get("current_adjusted_strategy", snapshot)["name"]
 
-
-    # Calcola i parametri simulati basandosi sui valori degli slider
     simulated_params = snapshot['params'].copy()
     new_underlying_price = simulated_params['underlying_price'] * (1 + sim_price_change_percent / 100.0)
     new_price_range = np.linspace(new_underlying_price * 0.7, new_underlying_price * 1.3, 200)
@@ -58,13 +52,11 @@ def render_playbook_tab(strategy_details, base_params):
         'base_days_to_expiration': snapshot['params']['base_days_to_expiration'] - sim_days_passed
     })
 
-    # Calcola P/L e Greche per la strategia corrente CON i parametri simulati
     pnl_T_main, pnl_exp_main, greeks_main = calculate_pnl_and_greeks(
         strategy_legs=legs_to_adjust,
         **simulated_params
     )
     
-    # Riquadro P/L At-Now e Greche simulate
     st.markdown("---")
     sim_cols = st.columns([1.5, 1, 1, 1, 1])
     with sim_cols[0]:
@@ -105,7 +97,6 @@ def render_playbook_tab(strategy_details, base_params):
     st.markdown("---")
     st.subheader("3. Grafico Comparativo Profit/Loss")
 
-    # Calcola il P/L dello snapshot originale (da mostrare come riferimento fisso)
     pnl_T_orig, pnl_exp_orig, _ = calculate_pnl_and_greeks(
         strategy_legs=snapshot['legs'],
         **snapshot['params']
