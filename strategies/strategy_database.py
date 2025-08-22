@@ -56,13 +56,13 @@ STRATEGY_DATABASE = {
         "Combo (Risk Reversal Bull)": {
             "legs": [
                 {"type": "put", "direction": "short", "ratio": 1, "strike_offset": -10},
-                {"type": "call", "direction": "long", "ratio": 1, "strike_offset": +10}
+                {"type": "call", "direction": "long", "ratio": 1, "strike_offset": 10}
             ],
             "description": "Short Put OTM + Long Call OTM. Bias rialzista."
         },
         "Combo (Risk Reversal Bear)": {
             "legs": [
-                {"type": "call", "direction": "short", "ratio": 1, "strike_offset": +10},
+                {"type": "call", "direction": "short", "ratio": 1, "strike_offset": 10},
                 {"type": "put", "direction": "long", "ratio": 1, "strike_offset": -10}
             ],
             "description": "Short Call OTM + Long Put OTM. Bias ribassista."
@@ -74,7 +74,7 @@ STRATEGY_DATABASE = {
         "Covered Call": {
             "legs": [
                 {"type": "stock", "direction": "long", "ratio": 1},
-                {"type": "call", "direction": "short", "ratio": 1, "strike_offset": +10}
+                {"type": "call", "direction": "short", "ratio": 1, "strike_offset": 10}
             ],
             "description": "Long Stock + Short Call OTM. Income, cap sul rialzo."
         },
@@ -89,14 +89,15 @@ STRATEGY_DATABASE = {
             "legs": [
                 {"type": "stock", "direction": "long", "ratio": 1},
                 {"type": "put", "direction": "long", "ratio": 1, "strike_offset": -10},
-                {"type": "call", "direction": "short", "ratio": 1, "strike_offset": +10}
+                {"type": "call", "direction": "short", "ratio": 1, "strike_offset": 10}
             ],
             "description": "Long Stock + Put OTM + Short Call OTM. Protezione con cap."
         },
         "Zero-Cost Collar / Fence": {
             "legs": [
                 {"type": "stock", "direction": "long", "ratio": 1},
-                {"type": "put", "direction": "long", "ratio": 1, "strike_offset": -k} for k in []
+                {"type": "put", "direction": "long", "ratio": 1, "strike_offset": -10},
+                {"type": "call", "direction": "short", "ratio": 1, "strike_offset": 10}
             ],
             "description": "Come Collar, calibrato per costo netto ≈ 0.",
             "note": "Imposta strike per credito-debito ~0; rappresentazione logica (stesso schema del Collar)."
@@ -123,8 +124,8 @@ STRATEGY_DATABASE = {
         },
         "Poor Man’s Covered Call (PMCC)": {
             "legs": [
-                {"type": "call", "direction": "long", "ratio": 1, "moneyness": "ITM", "expiry_offset": +6},
-                {"type": "call", "direction": "short", "ratio": 1, "moneyness": "OTM", "expiry_offset": +1}
+                {"type": "call", "direction": "long", "ratio": 1, "moneyness": "ITM", "expiry_offset": 180},
+                {"type": "call", "direction": "short", "ratio": 1, "moneyness": "OTM", "expiry_offset": 0}
             ],
             "description": "Long Call LEAPS ITM + Short Call front. Replica CC con minor capitale."
         },
@@ -143,27 +144,27 @@ STRATEGY_DATABASE = {
         "Bull Call Spread (Debit)": {
             "legs": [
                 {"type": "call", "direction": "long", "ratio": 1, "strike_offset": -5},
-                {"type": "call", "direction": "short", "ratio": 1, "strike_offset": +5}
+                {"type": "call", "direction": "short", "ratio": 1, "strike_offset": 5}
             ],
             "description": "Rialzista, rischio/rendimento definiti."
         },
         "Bear Call Spread (Credit)": {
             "legs": [
                 {"type": "call", "direction": "short", "ratio": 1, "strike_offset": -5},
-                {"type": "call", "direction": "long", "ratio": 1, "strike_offset": +5}
+                {"type": "call", "direction": "long", "ratio": 1, "strike_offset": 5}
             ],
             "description": "Ribassista/neutral, credit."
         },
         "Bull Put Spread (Credit)": {
             "legs": [
-                {"type": "put", "direction": "short", "ratio": 1, "strike_offset": +5},
+                {"type": "put", "direction": "short", "ratio": 1, "strike_offset": 5},
                 {"type": "put", "direction": "long", "ratio": 1, "strike_offset": -5}
             ],
             "description": "Rialzista/neutral, credit."
         },
         "Bear Put Spread (Debit)": {
             "legs": [
-                {"type": "put", "direction": "long", "ratio": 1, "strike_offset": +5},
+                {"type": "put", "direction": "long", "ratio": 1, "strike_offset": 5},
                 {"type": "put", "direction": "short", "ratio": 1, "strike_offset": -5}
             ],
             "description": "Ribassista, debit."
@@ -171,7 +172,7 @@ STRATEGY_DATABASE = {
         "Wide Vertical (Call/Put)": {
             "legs": [
                 {"type": "call", "direction": "long", "ratio": 1, "strike_offset": -10},
-                {"type": "call", "direction": "short", "ratio": 1, "strike_offset": +10}
+                {"type": "call", "direction": "short", "ratio": 1, "strike_offset": 10}
             ],
             "description": "Vertical con ali più lontane (ampiezza maggiore).",
             "note": "Usa 'type' put per variante ribassista simmetrica."
@@ -179,7 +180,7 @@ STRATEGY_DATABASE = {
         "Narrow Vertical (Call/Put)": {
             "legs": [
                 {"type": "call", "direction": "long", "ratio": 1, "strike_offset": -2},
-                {"type": "call", "direction": "short", "ratio": 1, "strike_offset": +2}
+                {"type": "call", "direction": "short", "ratio": 1, "strike_offset": 2}
             ],
             "description": "Vertical stretto; minor costo/minor credito."
         },
@@ -187,8 +188,8 @@ STRATEGY_DATABASE = {
             "legs": [
                 {"type": "call", "direction": "long", "ratio": 1, "strike_offset": -15},
                 {"type": "call", "direction": "short", "ratio": 1, "strike_offset": -5},
-                {"type": "call", "direction": "short", "ratio": 1, "strike_offset": +5},
-                {"type": "call", "direction": "long", "ratio": 1, "strike_offset": +15}
+                {"type": "call", "direction": "short", "ratio": 1, "strike_offset": 5},
+                {"type": "call", "direction": "long", "ratio": 1, "strike_offset": 15}
             ],
             "description": "Catena di vertical per sagomare payoff (equivalente a Condor debit)."
         },
@@ -199,20 +200,20 @@ STRATEGY_DATABASE = {
         "Call Ratio Spread (Front)": {
             "legs": [
                 {"type": "call", "direction": "long", "ratio": 1, "strike_offset": -5},
-                {"type": "call", "direction": "short", "ratio": 2, "strike_offset": +5}
+                {"type": "call", "direction": "short", "ratio": 2, "strike_offset": 5}
             ],
             "description": "Short vol direzionale su call-side."
         },
         "Call Ratio Backspread": {
             "legs": [
                 {"type": "call", "direction": "short", "ratio": 1, "strike_offset": -5},
-                {"type": "call", "direction": "long", "ratio": 2, "strike_offset": +5}
+                {"type": "call", "direction": "long", "ratio": 2, "strike_offset": 5}
             ],
             "description": "Rialzista e long volatility."
         },
         "Put Ratio Backspread": {
             "legs": [
-                {"type": "put", "direction": "short", "ratio": 1, "strike_offset": +5},
+                {"type": "put", "direction": "short", "ratio": 1, "strike_offset": 5},
                 {"type": "put", "direction": "long", "ratio": 2, "strike_offset": -5}
             ],
             "description": "Ribassista e long volatility."
@@ -220,7 +221,7 @@ STRATEGY_DATABASE = {
         "Front Spread (Call)": {
             "legs": [
                 {"type": "call", "direction": "long", "ratio": 1, "moneyness": "ATM"},
-                {"type": "call", "direction": "short", "ratio": 2, "strike_offset": +10}
+                {"type": "call", "direction": "short", "ratio": 2, "strike_offset": 10}
             ],
             "description": "Long 1 + Short 2 sullo stesso lato; short vol direzionale."
         },
@@ -234,7 +235,7 @@ STRATEGY_DATABASE = {
         "Reverse Ratio (Call)": {
             "legs": [
                 {"type": "call", "direction": "short", "ratio": 1, "moneyness": "ATM"},
-                {"type": "call", "direction": "long", "ratio": 2, "strike_offset": +10}
+                {"type": "call", "direction": "long", "ratio": 2, "strike_offset": 10}
             ],
             "description": "Inversione del front spread; spesso debit, long tail."
         },
@@ -247,15 +248,15 @@ STRATEGY_DATABASE = {
         },
         "Ratio Diagonal (Call)": {
             "legs": [
-                {"type": "call", "direction": "short", "ratio": 1, "moneyness": "ATM", "expiry": "near", "expiry_offset": +1},
-                {"type": "call", "direction": "long", "ratio": 2, "strike_offset": +10, "expiry": "far", "expiry_offset": +3}
+                {"type": "call", "direction": "short", "ratio": 1, "moneyness": "ATM", "expiry": "near", "expiry_offset": 0},
+                {"type": "call", "direction": "long", "ratio": 2, "strike_offset": 10, "expiry": "far", "expiry_offset": 30}
             ],
             "description": "Rapporto + scadenze diverse (term/vega play)."
         },
         "Ratio Diagonal (Put)": {
             "legs": [
-                {"type": "put", "direction": "short", "ratio": 1, "moneyness": "ATM", "expiry": "near", "expiry_offset": +1},
-                {"type": "put", "direction": "long", "ratio": 2, "strike_offset": -10, "expiry": "far", "expiry_offset": +3}
+                {"type": "put", "direction": "short", "ratio": 1, "moneyness": "ATM", "expiry": "near", "expiry_offset": 0},
+                {"type": "put", "direction": "long", "ratio": 2, "strike_offset": -10, "expiry": "far", "expiry_offset": 30}
             ],
             "description": "Rapporto diagonale lato put."
         },
@@ -280,28 +281,28 @@ STRATEGY_DATABASE = {
         "Long Strangle": {
             "legs": [
                 {"type": "put", "direction": "long", "ratio": 1, "strike_offset": -10},
-                {"type": "call", "direction": "long", "ratio": 1, "strike_offset": +10}
+                {"type": "call", "direction": "long", "ratio": 1, "strike_offset": 10}
             ],
             "description": "Long vol OTM più economico."
         },
         "Short Strangle": {
             "legs": [
                 {"type": "put", "direction": "short", "ratio": 1, "strike_offset": -10},
-                {"type": "call", "direction": "short", "ratio": 1, "strike_offset": +10}
+                {"type": "call", "direction": "short", "ratio": 1, "strike_offset": 10}
             ],
             "description": "Short vol con BE più ampi."
         },
         "Guts (ITM Strangle) Long": {
             "legs": [
-                {"type": "put", "direction": "long", "ratio": 1, "moneyness": "ITM"},
-                {"type": "call", "direction": "long", "ratio": 1, "moneyness": "ITM"}
+                {"type": "put", "direction": "long", "ratio": 1, "moneyness": "ITM", "strike_offset": 10},
+                {"type": "call", "direction": "long", "ratio": 1, "moneyness": "ITM", "strike_offset": -10}
             ],
             "description": "Strangle ITM; premio alto, sensibilità elevata."
         },
         "Guts (ITM Strangle) Short": {
             "legs": [
-                {"type": "put", "direction": "short", "ratio": 1, "moneyness": "ITM"},
-                {"type": "call", "direction": "short", "ratio": 1, "moneyness": "ITM"}
+                {"type": "put", "direction": "short", "ratio": 1, "moneyness": "ITM", "strike_offset": 10},
+                {"type": "call", "direction": "short", "ratio": 1, "moneyness": "ITM", "strike_offset": -10}
             ],
             "description": "Versione short; rischio elevato."
         },
@@ -329,7 +330,7 @@ STRATEGY_DATABASE = {
         "Ratio Strangle": {
             "legs": [
                 {"type": "put", "direction": "long", "ratio": 1, "strike_offset": -10},
-                {"type": "call", "direction": "long", "ratio": 2, "strike_offset": +10}
+                {"type": "call", "direction": "long", "ratio": 2, "strike_offset": 10}
             ],
             "description": "Strangle non 1:1."
         },
@@ -337,8 +338,8 @@ STRATEGY_DATABASE = {
             "legs": [
                 {"type": "call", "direction": "long", "ratio": 1, "strike_offset": -15},
                 {"type": "call", "direction": "short", "ratio": 2, "strike_offset": -5},
-                {"type": "call", "direction": "long", "ratio": 1, "strike_offset": +5},
-                {"type": "call", "direction": "short", "ratio": 2, "strike_offset": +15}
+                {"type": "call", "direction": "long", "ratio": 1, "strike_offset": 5},
+                {"type": "call", "direction": "short", "ratio": 2, "strike_offset": 15}
             ],
             "description": "Doppia farfalla/straddle sagomato intorno all’ATM (naming informale)."
         },
@@ -350,13 +351,13 @@ STRATEGY_DATABASE = {
             "legs": [
                 {"type": "call", "direction": "long", "ratio": 1, "strike_offset": -10},
                 {"type": "call", "direction": "short", "ratio": 2, "moneyness": "ATM"},
-                {"type": "call", "direction": "long", "ratio": 1, "strike_offset": +10}
+                {"type": "call", "direction": "long", "ratio": 1, "strike_offset": 10}
             ],
             "description": "Neutrale, debit, short vol intorno al centro."
         },
         "Long Put Butterfly (1:-2:1)": {
             "legs": [
-                {"type": "put", "direction": "long", "ratio": 1, "strike_offset": +10},
+                {"type": "put", "direction": "long", "ratio": 1, "strike_offset": 10},
                 {"type": "put", "direction": "short", "ratio": 2, "moneyness": "ATM"},
                 {"type": "put", "direction": "long", "ratio": 1, "strike_offset": -10}
             ],
@@ -366,7 +367,7 @@ STRATEGY_DATABASE = {
             "legs": [
                 {"type": "call", "direction": "short", "ratio": 1, "moneyness": "ATM"},
                 {"type": "put", "direction": "short", "ratio": 1, "moneyness": "ATM"},
-                {"type": "call", "direction": "long", "ratio": 1, "strike_offset": +10},
+                {"type": "call", "direction": "long", "ratio": 1, "strike_offset": 10},
                 {"type": "put", "direction": "long", "ratio": 1, "strike_offset": -10}
             ],
             "description": "Short straddle + ali OTM. Credit, short vol."
@@ -375,7 +376,7 @@ STRATEGY_DATABASE = {
             "legs": [
                 {"type": "call", "direction": "long", "ratio": 1, "moneyness": "ATM"},
                 {"type": "put", "direction": "long", "ratio": 1, "moneyness": "ATM"},
-                {"type": "call", "direction": "short", "ratio": 1, "strike_offset": +10},
+                {"type": "call", "direction": "short", "ratio": 1, "strike_offset": 10},
                 {"type": "put", "direction": "short", "ratio": 1, "strike_offset": -10}
             ],
             "description": "Debit, long vol su centro."
@@ -390,8 +391,8 @@ STRATEGY_DATABASE = {
         },
         "Broken-Wing Put Butterfly": {
             "legs": [
-                {"type": "put", "direction": "long", "ratio": 1, "strike_offset": +15},
-                {"type": "put", "direction": "short", "ratio": 2, "strike_offset": +5},
+                {"type": "put", "direction": "long", "ratio": 1, "strike_offset": 15},
+                {"type": "put", "direction": "short", "ratio": 2, "strike_offset": 5},
                 {"type": "put", "direction": "long", "ratio": 1, "strike_offset": 0}
             ],
             "description": "Versione BWB lato put."
@@ -400,7 +401,7 @@ STRATEGY_DATABASE = {
             "legs": [
                 {"type": "call", "direction": "long", "ratio": 1, "strike_offset": -10},
                 {"type": "call", "direction": "short", "ratio": 2, "strike_offset": 0},
-                {"type": "call", "direction": "long", "ratio": 1, "strike_offset": +20}
+                {"type": "call", "direction": "long", "ratio": 1, "strike_offset": 20}
             ],
             "description": "Si salta uno strike per asimmetria intrinseca."
         },
@@ -408,13 +409,13 @@ STRATEGY_DATABASE = {
             "legs": [
                 {"type": "call", "direction": "long", "ratio": 2, "strike_offset": -10},
                 {"type": "call", "direction": "short", "ratio": 3, "moneyness": "ATM"},
-                {"type": "call", "direction": "long", "ratio": 1, "strike_offset": +10}
+                {"type": "call", "direction": "long", "ratio": 1, "strike_offset": 10}
             ],
             "description": "Quantità non 1:-2:1 per drift di delta/theta."
         },
         "Unbalanced Skip-Strike Butterfly": {
             "legs": [
-                {"type": "put", "direction": "long", "ratio": 2, "strike_offset": +10},
+                {"type": "put", "direction": "long", "ratio": 2, "strike_offset": 10},
                 {"type": "put", "direction": "short", "ratio": 3, "strike_offset": 0},
                 {"type": "put", "direction": "long", "ratio": 1, "strike_offset": -20}
             ],
@@ -424,7 +425,7 @@ STRATEGY_DATABASE = {
             "legs": [
                 {"type": "call", "direction": "long", "ratio": 2, "strike_offset": -10},
                 {"type": "call", "direction": "short", "ratio": 3, "strike_offset": 0},
-                {"type": "call", "direction": "long", "ratio": 1, "strike_offset": +15}
+                {"type": "call", "direction": "long", "ratio": 1, "strike_offset": 15}
             ],
             "description": "Farfalla a 'scala' con step non equidistanti."
         },
@@ -435,8 +436,8 @@ STRATEGY_DATABASE = {
         },
         "Rhino (Put BWB Theta+)": {
             "legs": [
-                {"type": "put", "direction": "long", "ratio": 2, "strike_offset": +30},
-                {"type": "put", "direction": "short", "ratio": 3, "strike_offset": +10},
+                {"type": "put", "direction": "long", "ratio": 2, "strike_offset": 30},
+                {"type": "put", "direction": "short", "ratio": 3, "strike_offset": 10},
                 {"type": "put", "direction": "long", "ratio": 1, "strike_offset": 0}
             ],
             "description": "BWB lato put, theta-positive con rischio di coda controllato."
@@ -449,15 +450,15 @@ STRATEGY_DATABASE = {
             "legs": [
                 {"type": "call", "direction": "long", "ratio": 1, "strike_offset": -15},
                 {"type": "call", "direction": "short", "ratio": 1, "strike_offset": -5},
-                {"type": "call", "direction": "short", "ratio": 1, "strike_offset": +5},
-                {"type": "call", "direction": "long", "ratio": 1, "strike_offset": +15}
+                {"type": "call", "direction": "short", "ratio": 1, "strike_offset": 5},
+                {"type": "call", "direction": "long", "ratio": 1, "strike_offset": 15}
             ],
             "description": "Debit, long vol a range stretto."
         },
         "Long Put Condor (Debit)": {
             "legs": [
-                {"type": "put", "direction": "long", "ratio": 1, "strike_offset": +15},
-                {"type": "put", "direction": "short", "ratio": 1, "strike_offset": +5},
+                {"type": "put", "direction": "long", "ratio": 1, "strike_offset": 15},
+                {"type": "put", "direction": "short", "ratio": 1, "strike_offset": 5},
                 {"type": "put", "direction": "short", "ratio": 1, "strike_offset": -5},
                 {"type": "put", "direction": "long", "ratio": 1, "strike_offset": -15}
             ],
@@ -467,8 +468,8 @@ STRATEGY_DATABASE = {
             "legs": [
                 {"type": "put", "direction": "long", "ratio": 1, "strike_offset": -15},
                 {"type": "put", "direction": "short", "ratio": 1, "strike_offset": -5},
-                {"type": "call", "direction": "short", "ratio": 1, "strike_offset": +5},
-                {"type": "call", "direction": "long", "ratio": 1, "strike_offset": +15}
+                {"type": "call", "direction": "short", "ratio": 1, "strike_offset": 5},
+                {"type": "call", "direction": "long", "ratio": 1, "strike_offset": 15}
             ],
             "description": "Credit, short vol a range."
         },
@@ -476,8 +477,8 @@ STRATEGY_DATABASE = {
             "legs": [
                 {"type": "put", "direction": "short", "ratio": 1, "strike_offset": -15},
                 {"type": "put", "direction": "long", "ratio": 1, "strike_offset": -5},
-                {"type": "call", "direction": "long", "ratio": 1, "strike_offset": +5},
-                {"type": "call", "direction": "short", "ratio": 1, "strike_offset": +15}
+                {"type": "call", "direction": "long", "ratio": 1, "strike_offset": 5},
+                {"type": "call", "direction": "short", "ratio": 1, "strike_offset": 15}
             ],
             "description": "Debit, long vol."
         },
@@ -485,8 +486,8 @@ STRATEGY_DATABASE = {
             "legs": [
                 {"type": "put", "direction": "long", "ratio": 1, "strike_offset": -20},
                 {"type": "put", "direction": "short", "ratio": 1, "strike_offset": -10},
-                {"type": "call", "direction": "short", "ratio": 1, "strike_offset": +5},
-                {"type": "call", "direction": "long", "ratio": 1, "strike_offset": +10}
+                {"type": "call", "direction": "short", "ratio": 1, "strike_offset": 5},
+                {"type": "call", "direction": "long", "ratio": 1, "strike_offset": 10}
             ],
             "description": "Ali asimmetriche per inclinare il rischio."
         },
@@ -494,8 +495,8 @@ STRATEGY_DATABASE = {
             "legs": [
                 {"type": "put", "direction": "long", "ratio": 1, "strike_offset": -15},
                 {"type": "put", "direction": "short", "ratio": 2, "strike_offset": -5},
-                {"type": "call", "direction": "short", "ratio": 1, "strike_offset": +5},
-                {"type": "call", "direction": "long", "ratio": 1, "strike_offset": +15}
+                {"type": "call", "direction": "short", "ratio": 1, "strike_offset": 5},
+                {"type": "call", "direction": "long", "ratio": 1, "strike_offset": 15}
             ],
             "description": "Quantità diverse per target di delta."
         },
@@ -503,8 +504,8 @@ STRATEGY_DATABASE = {
             "legs": [
                 {"type": "put", "direction": "long", "ratio": 1, "strike_offset": -60},
                 {"type": "put", "direction": "short", "ratio": 1, "strike_offset": -30},
-                {"type": "call", "direction": "short", "ratio": 1, "strike_offset": +30},
-                {"type": "call", "direction": "long", "ratio": 1, "strike_offset": +60}
+                {"type": "call", "direction": "short", "ratio": 1, "strike_offset": 30},
+                {"type": "call", "direction": "long", "ratio": 1, "strike_offset": 60}
             ],
             "description": "IC a larghezza molto ampia."
         },
@@ -519,33 +520,33 @@ STRATEGY_DATABASE = {
     "8. Calendari, Diagonali & Time": {
         "Call Calendar": {
             "legs": [
-                {"type": "call", "direction": "short", "ratio": 1, "moneyness": "ATM", "expiry": "near", "expiry_offset": +1},
-                {"type": "call", "direction": "long", "ratio": 1, "moneyness": "ATM", "expiry": "far", "expiry_offset": +3}
+                {"type": "call", "direction": "short", "ratio": 1, "moneyness": "ATM", "expiry": "near", "expiry_offset": 0},
+                {"type": "call", "direction": "long", "ratio": 1, "moneyness": "ATM", "expiry": "far", "expiry_offset": 30}
             ],
             "description": "Stesso strike, scadenze diverse; long vol di calendario."
         },
         "Put Calendar": {
             "legs": [
-                {"type": "put", "direction": "short", "ratio": 1, "moneyness": "ATM", "expiry": "near", "expiry_offset": +1},
-                {"type": "put", "direction": "long", "ratio": 1, "moneyness": "ATM", "expiry": "far", "expiry_offset": +3}
+                {"type": "put", "direction": "short", "ratio": 1, "moneyness": "ATM", "expiry": "near", "expiry_offset": 0},
+                {"type": "put", "direction": "long", "ratio": 1, "moneyness": "ATM", "expiry": "far", "expiry_offset": 30}
             ],
             "description": "Analogo lato put."
         },
         "Double Calendar (Time Iron Condor)": {
             "legs": [
-                {"type": "call", "direction": "short", "ratio": 1, "strike_offset": +10, "expiry": "near", "expiry_offset": +1},
-                {"type": "call", "direction": "long", "ratio": 1, "strike_offset": +10, "expiry": "far", "expiry_offset": +3},
-                {"type": "put", "direction": "short", "ratio": 1, "strike_offset": -10, "expiry": "near", "expiry_offset": +1},
-                {"type": "put", "direction": "long", "ratio": 1, "strike_offset": -10, "expiry": "far", "expiry_offset": +3}
+                {"type": "call", "direction": "short", "ratio": 1, "strike_offset": 10, "expiry": "near", "expiry_offset": 0},
+                {"type": "call", "direction": "long", "ratio": 1, "strike_offset": 10, "expiry": "far", "expiry_offset": 30},
+                {"type": "put", "direction": "short", "ratio": 1, "strike_offset": -10, "expiry": "near", "expiry_offset": 0},
+                {"type": "put", "direction": "long", "ratio": 1, "strike_offset": -10, "expiry": "far", "expiry_offset": 30}
             ],
             "description": "Calendario su entrambe le ali; profilo IC nel tempo."
         },
         "Calendar Strangle": {
             "legs": [
-                {"type": "call", "direction": "short", "ratio": 1, "strike_offset": +10, "expiry": "near", "expiry_offset": +1},
-                {"type": "call", "direction": "long", "ratio": 1, "strike_offset": +10, "expiry": "far", "expiry_offset": +3},
-                {"type": "put", "direction": "short", "ratio": 1, "strike_offset": -10, "expiry": "near", "expiry_offset": +1},
-                {"type": "put", "direction": "long", "ratio": 1, "strike_offset": -10, "expiry": "far", "expiry_offset": +3}
+                {"type": "call", "direction": "short", "ratio": 1, "strike_offset": 10, "expiry": "near", "expiry_offset": 0},
+                {"type": "call", "direction": "long", "ratio": 1, "strike_offset": 10, "expiry": "far", "expiry_offset": 30},
+                {"type": "put", "direction": "short", "ratio": 1, "strike_offset": -10, "expiry": "near", "expiry_offset": 0},
+                {"type": "put", "direction": "long", "ratio": 1, "strike_offset": -10, "expiry": "far", "expiry_offset": 30}
             ],
             "description": "OTM calendar su entrambi i lati."
         },
@@ -556,38 +557,38 @@ STRATEGY_DATABASE = {
         },
         "Diagonal Call (Debit)": {
             "legs": [
-                {"type": "call", "direction": "long", "ratio": 1, "strike_offset": -5, "expiry": "far", "expiry_offset": +3},
-                {"type": "call", "direction": "short", "ratio": 1, "strike_offset": +5, "expiry": "near", "expiry_offset": +1}
+                {"type": "call", "direction": "long", "ratio": 1, "strike_offset": -5, "expiry": "far", "expiry_offset": 30},
+                {"type": "call", "direction": "short", "ratio": 1, "strike_offset": 5, "expiry": "near", "expiry_offset": 0}
             ],
             "description": "Strike diversi + scadenze diverse."
         },
         "Diagonal Put (Debit)": {
             "legs": [
-                {"type": "put", "direction": "long", "ratio": 1, "strike_offset": +5, "expiry": "far", "expiry_offset": +3},
-                {"type": "put", "direction": "short", "ratio": 1, "strike_offset": -5, "expiry": "near", "expiry_offset": +1}
+                {"type": "put", "direction": "long", "ratio": 1, "strike_offset": 5, "expiry": "far", "expiry_offset": 30},
+                {"type": "put", "direction": "short", "ratio": 1, "strike_offset": -5, "expiry": "near", "expiry_offset": 0}
             ],
             "description": "Analogo lato put."
         },
         "Diagonal Call (Credit)": {
             "legs": [
-                {"type": "call", "direction": "short", "ratio": 1, "strike_offset": -5, "expiry": "near", "expiry_offset": +1},
-                {"type": "call", "direction": "long", "ratio": 1, "strike_offset": +5, "expiry": "far", "expiry_offset": +3}
+                {"type": "call", "direction": "short", "ratio": 1, "strike_offset": -5, "expiry": "near", "expiry_offset": 0},
+                {"type": "call", "direction": "long", "ratio": 1, "strike_offset": 5, "expiry": "far", "expiry_offset": 30}
             ],
             "description": "Versione credit."
         },
         "Diagonal Put (Credit)": {
             "legs": [
-                {"type": "put", "direction": "short", "ratio": 1, "strike_offset": +5, "expiry": "near", "expiry_offset": +1},
-                {"type": "put", "direction": "long", "ratio": 1, "strike_offset": -5, "expiry": "far", "expiry_offset": +3}
+                {"type": "put", "direction": "short", "ratio": 1, "strike_offset": 5, "expiry": "near", "expiry_offset": 0},
+                {"type": "put", "direction": "long", "ratio": 1, "strike_offset": -5, "expiry": "far", "expiry_offset": 30}
             ],
             "description": "Versione credit lato put."
         },
         "Double Diagonal": {
             "legs": [
-                {"type": "call", "direction": "short", "ratio": 1, "strike_offset": +5, "expiry": "near", "expiry_offset": +1},
-                {"type": "call", "direction": "long", "ratio": 1, "strike_offset": +15, "expiry": "far", "expiry_offset": +3},
-                {"type": "put", "direction": "short", "ratio": 1, "strike_offset": -5, "expiry": "near", "expiry_offset": +1},
-                {"type": "put", "direction": "long", "ratio": 1, "strike_offset": -15, "expiry": "far", "expiry_offset": +3}
+                {"type": "call", "direction": "short", "ratio": 1, "strike_offset": 5, "expiry": "near", "expiry_offset": 0},
+                {"type": "call", "direction": "long", "ratio": 1, "strike_offset": 15, "expiry": "far", "expiry_offset": 30},
+                {"type": "put", "direction": "short", "ratio": 1, "strike_offset": -5, "expiry": "near", "expiry_offset": 0},
+                {"type": "put", "direction": "long", "ratio": 1, "strike_offset": -15, "expiry": "far", "expiry_offset": 30}
             ],
             "description": "Diagonale call + diagonale put; profilo IC nel tempo."
         },
@@ -603,14 +604,14 @@ STRATEGY_DATABASE = {
         "Jade Lizard": {
             "legs": [
                 {"type": "put", "direction": "short", "ratio": 1, "strike_offset": -10},
-                {"type": "call", "direction": "short", "ratio": 1, "strike_offset": +5},
-                {"type": "call", "direction": "long", "ratio": 1, "strike_offset": +15}
+                {"type": "call", "direction": "short", "ratio": 1, "strike_offset": 5},
+                {"type": "call", "direction": "long", "ratio": 1, "strike_offset": 15}
             ],
             "description": "Short Put + Call Spread. Obiettivo: zero rischio a rialzo se credito ≥ larghezza call-spread."
         },
         "Reverse Jade Lizard": {
             "legs": [
-                {"type": "call", "direction": "short", "ratio": 1, "strike_offset": +10},
+                {"type": "call", "direction": "short", "ratio": 1, "strike_offset": 10},
                 {"type": "put", "direction": "short", "ratio": 1, "strike_offset": -5},
                 {"type": "put", "direction": "long", "ratio": 1, "strike_offset": -15}
             ],
@@ -619,22 +620,22 @@ STRATEGY_DATABASE = {
         "Big Lizard": {
             "legs": [
                 {"type": "put", "direction": "short", "ratio": 1, "strike_offset": -10},
-                {"type": "call", "direction": "short", "ratio": 1, "strike_offset": +10},
-                {"type": "call", "direction": "long", "ratio": 1, "strike_offset": +25}
+                {"type": "call", "direction": "short", "ratio": 1, "strike_offset": 10},
+                {"type": "call", "direction": "long", "ratio": 1, "strike_offset": 25}
             ],
             "description": "Jade con call-spread più largo o credito più alto."
         },
         "Seagull (Bull Capped)": {
             "legs": [
                 {"type": "put", "direction": "long", "ratio": 1, "strike_offset": -10},
-                {"type": "call", "direction": "short", "ratio": 1, "strike_offset": +5},
-                {"type": "call", "direction": "long", "ratio": 1, "strike_offset": +15}
+                {"type": "call", "direction": "short", "ratio": 1, "strike_offset": 5},
+                {"type": "call", "direction": "long", "ratio": 1, "strike_offset": 15}
             ],
             "description": "Risk Reversal + opzione aggiuntiva per cap del lato aperto (bull)."
         },
         "Seagull (Bear Capped)": {
             "legs": [
-                {"type": "call", "direction": "long", "ratio": 1, "strike_offset": +10},
+                {"type": "call", "direction": "long", "ratio": 1, "strike_offset": 10},
                 {"type": "put", "direction": "short", "ratio": 1, "strike_offset": -5},
                 {"type": "put", "direction": "long", "ratio": 1, "strike_offset": -15}
             ],
@@ -643,13 +644,13 @@ STRATEGY_DATABASE = {
         "Risk Reversal (Bull)": {
             "legs": [
                 {"type": "put", "direction": "short", "ratio": 1, "strike_offset": -10},
-                {"type": "call", "direction": "long", "ratio": 1, "strike_offset": +10}
+                {"type": "call", "direction": "long", "ratio": 1, "strike_offset": 10}
             ],
             "description": "RR puro lato bull."
         },
         "Risk Reversal (Bear)": {
             "legs": [
-                {"type": "call", "direction": "short", "ratio": 1, "strike_offset": +10},
+                {"type": "call", "direction": "short", "ratio": 1, "strike_offset": 10},
                 {"type": "put", "direction": "long", "ratio": 1, "strike_offset": -10}
             ],
             "description": "RR puro lato bear."
@@ -666,8 +667,8 @@ STRATEGY_DATABASE = {
         "Call Ladder (1:-1:-1)": {
             "legs": [
                 {"type": "call", "direction": "long", "ratio": 1, "moneyness": "ATM"},
-                {"type": "call", "direction": "short", "ratio": 1, "strike_offset": +10},
-                {"type": "call", "direction": "short", "ratio": 1, "strike_offset": +20}
+                {"type": "call", "direction": "short", "ratio": 1, "strike_offset": 10},
+                {"type": "call", "direction": "short", "ratio": 1, "strike_offset": 20}
             ],
             "description": "Acquisto 1 e vendita multipla su strike superiori."
         },
@@ -679,17 +680,17 @@ STRATEGY_DATABASE = {
             ],
             "description": "Analogo lato put."
         },
-        "Christmas Tree (Call 1×3×2)": {
+        "Christmas Tree (Call 1x3x2)": {
             "legs": [
                 {"type": "call", "direction": "long", "ratio": 1, "strike_offset": -10},
                 {"type": "call", "direction": "short", "ratio": 3, "moneyness": "ATM"},
-                {"type": "call", "direction": "long", "ratio": 2, "strike_offset": +15}
+                {"type": "call", "direction": "long", "ratio": 2, "strike_offset": 15}
             ],
-            "description": "Struttura a scalini con quantità 1×3×2."
+            "description": "Struttura a scalini con quantità 1x3x2."
         },
-        "Christmas Tree (Put 1×3×2)": {
+        "Christmas Tree (Put 1x3x2)": {
             "legs": [
-                {"type": "put", "direction": "long", "ratio": 1, "strike_offset": +10},
+                {"type": "put", "direction": "long", "ratio": 1, "strike_offset": 10},
                 {"type": "put", "direction": "short", "ratio": 3, "moneyness": "ATM"},
                 {"type": "put", "direction": "long", "ratio": 2, "strike_offset": -15}
             ],
@@ -698,8 +699,8 @@ STRATEGY_DATABASE = {
         "Backspread Ladder": {
             "legs": [
                 {"type": "call", "direction": "short", "ratio": 1, "moneyness": "ATM"},
-                {"type": "call", "direction": "long", "ratio": 2, "strike_offset": +10},
-                {"type": "call", "direction": "long", "ratio": 1, "strike_offset": +20}
+                {"type": "call", "direction": "long", "ratio": 2, "strike_offset": 10},
+                {"type": "call", "direction": "long", "ratio": 1, "strike_offset": 20}
             ],
             "description": "Combinazione di backspread su più livelli per code."
         },
@@ -710,9 +711,9 @@ STRATEGY_DATABASE = {
         "Box Spread (Call+Put Box)": {
             "legs": [
                 {"type": "call", "direction": "long", "ratio": 1, "strike_offset": -5},
-                {"type": "call", "direction": "short", "ratio": 1, "strike_offset": +5},
+                {"type": "call", "direction": "short", "ratio": 1, "strike_offset": 5},
                 {"type": "put", "direction": "short", "ratio": 1, "strike_offset": -5},
-                {"type": "put", "direction": "long", "ratio": 1, "strike_offset": +5}
+                {"type": "put", "direction": "long", "ratio": 1, "strike_offset": 5}
             ],
             "description": "Verticale call + verticale put che replica un bond (carry/arb)."
         },
@@ -734,10 +735,10 @@ STRATEGY_DATABASE = {
         },
         "Jelly Roll": {
             "legs": [
-                {"type": "call", "direction": "long", "ratio": 1, "moneyness": "ATM", "expiry": "far", "expiry_offset": +3},
-                {"type": "call", "direction": "short", "ratio": 1, "moneyness": "ATM", "expiry": "near", "expiry_offset": +1},
-                {"type": "put", "direction": "short", "ratio": 1, "moneyness": "ATM", "expiry": "far", "expiry_offset": +3},
-                {"type": "put", "direction": "long", "ratio": 1, "moneyness": "ATM", "expiry": "near", "expiry_offset": +1}
+                {"type": "call", "direction": "long", "ratio": 1, "moneyness": "ATM", "expiry": "far", "expiry_offset": 30},
+                {"type": "call", "direction": "short", "ratio": 1, "moneyness": "ATM", "expiry": "near", "expiry_offset": 0},
+                {"type": "put", "direction": "short", "ratio": 1, "moneyness": "ATM", "expiry": "far", "expiry_offset": 30},
+                {"type": "put", "direction": "long", "ratio": 1, "moneyness": "ATM", "expiry": "near", "expiry_offset": 0}
             ],
             "description": "Call calendar + Put calendar (stesso strike) per rollare il forward/carry."
         },
@@ -745,7 +746,7 @@ STRATEGY_DATABASE = {
             "legs": [
                 {"type": "stock", "direction": "long", "ratio": 1},
                 {"type": "put", "direction": "long", "ratio": 1, "strike_offset": -10},
-                {"type": "call", "direction": "short", "ratio": 1, "strike_offset": +10}
+                {"type": "call", "direction": "short", "ratio": 1, "strike_offset": 10}
             ],
             "description": "Variante di collar con strike asimmetrici (hedge + income)."
         },
@@ -760,28 +761,28 @@ STRATEGY_DATABASE = {
         },
         "Calendar su Straddle (ATM)": {
             "legs": [
-                {"type": "call", "direction": "short", "ratio": 1, "moneyness": "ATM", "expiry": "near", "expiry_offset": +1},
-                {"type": "call", "direction": "long", "ratio": 1, "moneyness": "ATM", "expiry": "far", "expiry_offset": +3},
-                {"type": "put", "direction": "short", "ratio": 1, "moneyness": "ATM", "expiry": "near", "expiry_offset": +1},
-                {"type": "put", "direction": "long", "ratio": 1, "moneyness": "ATM", "expiry": "far", "expiry_offset": +3}
+                {"type": "call", "direction": "short", "ratio": 1, "moneyness": "ATM", "expiry": "near", "expiry_offset": 0},
+                {"type": "call", "direction": "long", "ratio": 1, "moneyness": "ATM", "expiry": "far", "expiry_offset": 30},
+                {"type": "put", "direction": "short", "ratio": 1, "moneyness": "ATM", "expiry": "near", "expiry_offset": 0},
+                {"type": "put", "direction": "long", "ratio": 1, "moneyness": "ATM", "expiry": "far", "expiry_offset": 30}
             ],
             "description": "Time-spread centrato su ATM per giocare il vega timing."
         },
         "Calendar su Strangle (OTM)": {
             "legs": [
-                {"type": "call", "direction": "short", "ratio": 1, "strike_offset": +10, "expiry": "near", "expiry_offset": +1},
-                {"type": "call", "direction": "long", "ratio": 1, "strike_offset": +10, "expiry": "far", "expiry_offset": +3},
-                {"type": "put", "direction": "short", "ratio": 1, "strike_offset": -10, "expiry": "near", "expiry_offset": +1},
-                {"type": "put", "direction": "long", "ratio": 1, "strike_offset": -10, "expiry": "far", "expiry_offset": +3}
+                {"type": "call", "direction": "short", "ratio": 1, "strike_offset": 10, "expiry": "near", "expiry_offset": 0},
+                {"type": "call", "direction": "long", "ratio": 1, "strike_offset": 10, "expiry": "far", "expiry_offset": 30},
+                {"type": "put", "direction": "short", "ratio": 1, "strike_offset": -10, "expiry": "near", "expiry_offset": 0},
+                {"type": "put", "direction": "long", "ratio": 1, "strike_offset": -10, "expiry": "far", "expiry_offset": 30}
             ],
             "description": "Time-spread OTM su entrambe le ali."
         },
         "Diagonal Strangle": {
             "legs": [
-                {"type": "call", "direction": "short", "ratio": 1, "strike_offset": +5, "expiry": "near", "expiry_offset": +1},
-                {"type": "call", "direction": "long", "ratio": 1, "strike_offset": +15, "expiry": "far", "expiry_offset": +3},
-                {"type": "put", "direction": "short", "ratio": 1, "strike_offset": -5, "expiry": "near", "expiry_offset": +1},
-                {"type": "put", "direction": "long", "ratio": 1, "strike_offset": -15, "expiry": "far", "expiry_offset": +3}
+                {"type": "call", "direction": "short", "ratio": 1, "strike_offset": 5, "expiry": "near", "expiry_offset": 0},
+                {"type": "call", "direction": "long", "ratio": 1, "strike_offset": 15, "expiry": "far", "expiry_offset": 30},
+                {"type": "put", "direction": "short", "ratio": 1, "strike_offset": -5, "expiry": "near", "expiry_offset": 0},
+                {"type": "put", "direction": "long", "ratio": 1, "strike_offset": -15, "expiry": "far", "expiry_offset": 30}
             ],
             "description": "Diagonale su entrambe le ali per skew e term-structure."
         },
