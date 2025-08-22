@@ -1,5 +1,6 @@
 import streamlit as st
 import numpy as np
+import pandas as pd
 from strategies.strategy_database import STRATEGY_DATABASE
 from core.financial_calcs import calculate_pnl_and_greeks
 from core.plotting import create_pnl_chart
@@ -12,7 +13,7 @@ st.set_page_config(
 )
 
 st.title("📈 Kriterion Options Playbook")
-st.markdown("Il simulatore interattivo per strategie in opzioni - **Fase 2: Analisi Avanzata**")
+st.markdown("Il simulatore interattivo per strategie in opzioni.")
 
 # --- Sidebar per Input Utente ---
 st.sidebar.header("Parametri di Input")
@@ -41,41 +42,74 @@ implied_volatility = st.sidebar.slider(
     min_value=5, max_value=150, value=20
 )
 
-# --- Area Principale ---
-if selected_strategy_name:
+# --- Creazione Tab ---
+tab1, tab2 = st.tabs(["Analisi Strategia", "Playbook (What-If)"])
+
+# --- Contenuto Tab 1: Analisi Strategia ---
+with tab1:
+    if selected_strategy_name:
+        # Calcola P/L e Greche
+        price_range = np.linspace(underlying_price * 0.7, underlying_price * 1.3, 200)
+        pnl_T, pnl_exp, greeks = calculate_pnl_and_greeks(
+            strategy_legs=strategy_details["legs"],
+            center_strike=center_strike,
+            underlying_range=price_range,
+            days_to_expiration=days_to_expiration,
+            implied_volatility=implied_volatility
+        )
+
+        st.subheader(f"Dettaglio Strategia: {selected_strategy_name}")
+
+        # --- NUOVA TABELLA DETTAGLIO GAMBE ---
+        leg_data = []
+        for leg in strategy_details["legs"]:
+            leg_data.append({
+                "Direzione": leg["direction"].capitalize(),
+                "Quantità": leg["ratio"],
+                "Tipo": leg["type"].capitalize(),
+                "Strike": center_strike + leg.get("strike_offset", 0)
+            })
+        
+        df_legs = pd.DataFrame(leg_data)
+        st.dataframe(df_legs, use_container_width=True)
+        
+        st.markdown("---")
+
+        # Dashboard delle Greche
+        st.subheader("Dashboard delle Greche per Contratto")
+        cols = st.columns(4)
+        cols[0].metric("Delta", f"{greeks['delta']:.2f}")
+        cols[1].metric("Gamma", f"{greeks['gamma']:.2f}")
+        cols[2].metric("Theta", f"{greeks['theta']:.2f}")
+        cols[3].metric("Vega", f"{greeks['vega']:.2f}")
+        
+        st.markdown("---")
+
+        # Grafico P/L
+        st.subheader("Grafico Profit/Loss")
+        pnl_chart = create_pnl_chart(
+            underlying_range=price_range,
+            pnl_at_T=pnl_T,
+            pnl_at_expiration=pnl_exp,
+            strategy_name=selected_strategy_name,
+            days_to_expiration=days_to_expiration
+        )
+        st.plotly_chart(pnl_chart, use_container_width=True)
+
+    else:
+        st.info("Seleziona una strategia dalla barra laterale per iniziare.")
+
+# --- Contenuto Tab 2: Playbook (What-If) ---
+with tab2:
+    st.header("⚙️ Motore di Simulazione 'What-If'")
+    st.markdown("Questa sezione è in fase di sviluppo (Prossimo Step).")
+    st.info("Qui potrai definire scenari di mercato futuri e testare aggiustamenti sulla tua strategia, visualizzando l'impatto sul profilo di rischio in un grafico comparativo.", icon="🛠️")
     
-    # 1. Definisci il range di prezzi
-    price_range = np.linspace(underlying_price * 0.7, underlying_price * 1.3, 200)
-
-    # 2. Calcola P/L e Greche
-    pnl_T, pnl_exp, greeks = calculate_pnl_and_greeks(
-        strategy_legs=strategy_details["legs"],
-        center_strike=center_strike,
-        underlying_range=price_range,
-        days_to_expiration=days_to_expiration,
-        implied_volatility=implied_volatility
-    )
-
-    # 3. Mostra la Dashboard delle Greche
-    st.subheader("Dashboard delle Greche per Contratto")
-    cols = st.columns(4)
-    cols[0].metric("Delta", f"{greeks['delta']:.2f}")
-    cols[1].metric("Gamma", f"{greeks['gamma']:.2f}")
-    cols[2].metric("Theta", f"{greeks['theta']:.2f}")
-    cols[3].metric("Vega", f"{greeks['vega']:.2f}")
-    
-    st.markdown("---")
-
-    # 4. Crea e mostra il grafico
-    st.subheader("Grafico Profit/Loss")
-    pnl_chart = create_pnl_chart(
-        underlying_range=price_range,
-        pnl_at_T=pnl_T,
-        pnl_at_expiration=pnl_exp,
-        strategy_name=selected_strategy_name,
-        days_to_expiration=days_to_expiration
-    )
-    st.plotly_chart(pnl_chart, use_container_width=True)
-
-else:
-    st.info("Seleziona una strategia dalla barra laterale per iniziare.")
+    # Qui verrà implementata la logica della Fase 3
+    # Esempio di struttura futura:
+    # st.subheader("Definisci lo Scenario Futuro")
+    # new_price = st.slider(...)
+    # days_passed = st.slider(...)
+    # st.subheader("Aggiustamenti Consigliati")
+    # if st.button("Rolla la strategia"):
+    #     # ... logica di aggiustamento ...
