@@ -1,6 +1,7 @@
 import streamlit as st
 import numpy as np
 import pandas as pd
+import copy
 from strategies.strategy_database import STRATEGY_DATABASE
 from core.financial_calcs import calculate_pnl_and_greeks, get_strike
 from core.plotting import create_pnl_chart
@@ -71,7 +72,6 @@ with tab1:
     else:
         price_range = np.linspace(underlying_price * 0.7, underlying_price * 1.3, 200)
         
-        # CORREZIONE: 'strategy_legs' non è più nel dizionario, ma passato a parte
         calc_params = {
             "center_strike": center_strike,
             "underlying_range": price_range,
@@ -120,14 +120,16 @@ with tab1:
         
         st.subheader("Playbook")
         if st.button("📸 Usa questo grafico come riferimento per il Playbook"):
+            # Crea una 'scatola chiusa' con tutti i dati necessari e già calcolati
             st.session_state.snapshot = {
                 "name": final_strategy_name,
-                "legs": modified_legs,
-                "params": calc_params.copy(),
+                "legs": copy.deepcopy(modified_legs),
+                "params": copy.deepcopy(calc_params),
                 "pnl_T": pnl_T,
-                "pnl_exp": pnl_exp,
-                "range": price_range
+                "pnl_exp": pnl_exp
             }
+            if "current_adjusted_strategy" in st.session_state:
+                del st.session_state.current_adjusted_strategy
             st.success(f"Snapshot creato per '{final_strategy_name}'. Vai alla tab 'Playbook' per la simulazione.")
 
         st.subheader("Analisi Qualitativa della Strategia")
