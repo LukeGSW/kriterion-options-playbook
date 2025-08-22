@@ -18,7 +18,6 @@ st.markdown("Il simulatore interattivo per strategie in opzioni.")
 # --- Sidebar per Input Utente ---
 st.sidebar.header("Parametri di Input")
 
-# Selezione a due livelli
 categories = list(STRATEGY_DATABASE.keys())
 selected_category = st.sidebar.selectbox("1. Scegli una Categoria", options=categories)
 
@@ -31,12 +30,10 @@ if "note" in strategy_details:
     st.sidebar.warning(f'Nota: {strategy_details["note"]}')
 
 
-# Parametri di Mercato e Contratto
 st.sidebar.subheader("3. Parametri di Mercato")
 underlying_price = st.sidebar.number_input("Prezzo Sottostante (S)", value=100.0, step=0.5)
 center_strike = st.sidebar.number_input("Strike Centrale (K)", value=100.0, step=0.5)
 
-# Parametri per Analisi Avanzata
 st.sidebar.subheader("4. Parametri di Analisi")
 base_days_to_expiration = st.sidebar.slider("Giorni alla Scadenza (base)", min_value=1, max_value=365, value=30)
 implied_volatility = st.sidebar.slider("Volatilità Implicita (%)", min_value=5, max_value=150, value=20)
@@ -101,6 +98,25 @@ with tab1:
             days_to_expiration=base_days_to_expiration
         )
         st.plotly_chart(pnl_chart, use_container_width=True)
+
+        # --- SEZIONE DI ANALISI QUALITATIVA (CODICE "RINFORZATO") ---
+        st.markdown("---")
+        st.subheader("Analisi Qualitativa della Strategia")
+
+        if "analysis" in strategy_details and isinstance(strategy_details["analysis"], dict):
+            analysis = strategy_details["analysis"]
+            
+            st.markdown(f"**🎯 Quando utilizzarla:** {analysis.get('when_to_use', 'N/A')}")
+            
+            st.markdown("**🔍 Condizioni di Mercato:**")
+            conditions = analysis.get('market_conditions', {})
+            st.markdown(f"- **Ottimali:** {conditions.get('optimal', 'N/A')}")
+            st.markdown(f"- **Sconsigliate:** {conditions.get('poor', 'N/A')}")
+
+            st.markdown(f"**✨ Peculiarità:** {analysis.get('peculiarities', 'N/A')}")
+        else:
+            # Messaggio di debug che appare se il blocco 'analysis' non viene trovato o ha un formato errato.
+            st.warning("Dati di analisi qualitativa non trovati o in formato non corretto per questa strategia nel database.")
 
 # --- Contenuto Tab 2: Playbook (What-If) ---
 with tab2:
