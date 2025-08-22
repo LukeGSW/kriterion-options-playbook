@@ -1,53 +1,25 @@
 import streamlit as st
 import numpy as np
-import copy # <-- IMPORTAZIONE NECESSARIA PER LA COPIA PROFONDA
+import copy
 from core.financial_calcs import calculate_pnl_and_greeks
 from core.plotting import create_pnl_chart
 from playbook.adjustments import roll_strategy
 
-def render_playbook_tab(strategy_details, base_params, current_legs):
+def render_playbook_tab():
     """
     Renderizza l'intera interfaccia e la logica per la tab "Playbook (What-If)".
+    Questa funzione ora dipende interamente da uno 'snapshot' creato nella Tab 1.
     """
     st.header("⚙️ Motore di Simulazione 'What-If'")
 
-    if not strategy_details or not current_legs:
-        st.warning("Seleziona una strategia valida dalla tab 'Analisi Strategia' per iniziare una simulazione.")
+    # La tab funziona solo se uno snapshot è stato creato nella Tab 1
+    if "snapshot" not in st.session_state:
+        st.info("Vai alla tab 'Analisi Strategia', imposta una posizione e clicca su '📸 Usa questo grafico come riferimento per il Playbook' per iniziare.")
         return
 
-    # Pulsante per creare/aggiornare lo snapshot di riferimento
-    if st.button("📸 Fissa Strategia Corrente come Riferimento"):
-        # Esegui il calcolo UNA SOLA VOLTA al momento dello snapshot
-        pnl_T_snapshot, pnl_exp_snapshot, greeks_snapshot = calculate_pnl_and_greeks(
-            strategy_legs=current_legs,
-            **base_params['calc_params']
-        )
-        # Salva i dati GIÀ CALCOLATI e una COPIA PROFONDA dei parametri
-        st.session_state.snapshot = {
-            "name": base_params['name'],
-            "legs": current_legs,
-            "params": copy.deepcopy(base_params['calc_params']), # <-- USA DEEPCOPY PER ISOLAMENTO TOTALE
-            "pnl_T": pnl_T_snapshot,
-            "pnl_exp": pnl_exp_snapshot,
-            "range": base_params['calc_params']['underlying_range']
-        }
-        # Resetta gli aggiustamenti quando si crea un nuovo snapshot
-        if "current_adjusted_strategy" in st.session_state:
-            del st.session_state.current_adjusted_strategy
-        st.success(f"Snapshot creato per '{base_params['name']}'.")
-        st.rerun()
-
-    st.markdown("---")
-
-    # Tutta la logica di simulazione viene eseguita solo se lo snapshot esiste e è valido
-    if "snapshot" not in st.session_state or "pnl_T" not in st.session_state.snapshot:
-        st.info("Imposta una strategia e i parametri nella prima tab, poi clicca il pulsante qui sopra per creare uno snapshot e iniziare la simulazione.")
-        return
-
-    # Da qui in poi, usiamo solo dati dallo snapshot o creati ex-novo
     snapshot = st.session_state.snapshot
 
-    st.subheader("1. Definisci uno Scenario di Mercato (vs. Snapshot)")
+    st.subheader("1. Definisci uno Scenario di Mercato (vs. Riferimento)")
     cols = st.columns(2)
     with cols[0]:
         sim_price_change_percent = st.slider("Variazione Prezzo Sottostante (%)", -50, 50, 0, key="sim_price_slider")
@@ -55,10 +27,14 @@ def render_playbook_tab(strategy_details, base_params, current_legs):
         sim_days_passed = st.slider("Giorni Trascorsi", 0, snapshot['params']['base_days_to_expiration'], 0, key="sim_days_slider")
 
     # Determina la strategia da usare (modificata o quella dello snapshot)
-    legs_to_simulate = st.session_state.get("current_adjusted_strategy", snapshot).get("legs")
-    name_to_simulate = st.session_state.get("current_adjusted_strategy", snapshot).get("name")
+    if "current_adjusted_strategy" in st.session_state:
+        legs_to_simulate = st.session_state.current_adjusted_strategy["legs"]
+        name_to_simulate = st.session_state.current_adjusted_strategy["name"]
+    else:
+        legs_to_simulate = snapshot["legs"]
+        name_to_simulate = snapshot["name"]
 
-    # Prepara i parametri per la simulazione, partendo da una copia pulita dello snapshot
+    # Prepara i parametri per la simulazione
     simulated_params = copy.deepcopy(snapshot['params'])
     new_underlying_price = simulated_params['underlying_price'] * (1 + sim_price_change_percent / 100.0)
     new_price_range = np.linspace(new_underlying_price * 0.7, new_underlying_price * 1.3, 200)
