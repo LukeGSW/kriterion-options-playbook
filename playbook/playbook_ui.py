@@ -4,7 +4,7 @@ from core.financial_calcs import calculate_pnl_and_greeks
 from core.plotting import create_pnl_chart
 from playbook.adjustments import roll_strategy
 
-def render_playbook_tab(strategy_details, base_params, current_legs): # <-- RICEVE LE GAMBE CORRENTI
+def render_playbook_tab(strategy_details, base_params, current_legs):
     """
     Renderizza l'intera interfaccia e la logica per la tab "Playbook (What-If)".
     """
@@ -16,17 +16,28 @@ def render_playbook_tab(strategy_details, base_params, current_legs): # <-- RICE
 
     # Pulsante per creare/aggiornare lo snapshot di riferimento
     if st.button("📸 Fissa Strategia Corrente come Riferimento"):
+        # Esegui il calcolo UNA SOLA VOLTA al momento dello snapshot
+        pnl_T_snapshot, pnl_exp_snapshot, _ = calculate_pnl_and_greeks(
+            strategy_legs=current_legs,
+            **base_params['calc_params']
+        )
+        # Salva i dati GIÀ CALCOLATI, non solo i parametri
         st.session_state.snapshot = {
             "name": base_params['name'],
-            "legs": current_legs, # <-- USA LE GAMBE PASSATE CORRETTAMENTE
-            "params": base_params['calc_params'].copy()
+            "legs": current_legs,
+            "params": base_params['calc_params'].copy(),
+            "pnl_T": pnl_T_snapshot,
+            "pnl_exp": pnl_exp_snapshot,
+            "range": base_params['calc_params']['underlying_range']
         }
+        # Resetta gli aggiustamenti quando si crea un nuovo snapshot
         if "current_adjusted_strategy" in st.session_state:
             del st.session_state.current_adjusted_strategy
         st.success(f"Snapshot creato per '{base_params['name']}'. Ora puoi usare gli slider e gli aggiustamenti.")
     
     st.markdown("---")
 
+    # Tutta la logica di simulazione viene eseguita solo se lo snapshot esiste
     if "snapshot" not in st.session_state:
         st.info("Imposta una strategia e i parametri nella prima tab, poi clicca il pulsante qui sopra per creare uno snapshot e iniziare la simulazione.")
         return
@@ -40,8 +51,8 @@ def render_playbook_tab(strategy_details, base_params, current_legs): # <-- RICE
     with cols[1]:
         sim_days_passed = st.slider("Giorni Trascorsi", 0, snapshot['params']['base_days_to_expiration'], 0, key="sim_days_slider")
 
-    legs_to_adjust = st.session_state.get("current_adjusted_strategy", snapshot)["legs"]
-    current_strategy_name = st.session_state.get("current_adjusted_strategy", snapshot)["name"]
+    legs_to_adjust = st.session_state.get("current_adjusted_strategy", snapshot).get("legs")
+    current_strategy_name = st.session_state.get("current_adjusted_strategy", snapshot).get("name")
 
     simulated_params = snapshot['params'].copy()
     new_underlying_price = simulated_params['underlying_price'] * (1 + sim_price_change_percent / 100.0)
@@ -97,20 +108,16 @@ def render_playbook_tab(strategy_details, base_params, current_legs): # <-- RICE
     st.markdown("---")
     st.subheader("3. Grafico Comparativo Profit/Loss")
 
-    pnl_T_orig, pnl_exp_orig, _ = calculate_pnl_and_greeks(
-        strategy_legs=snapshot['legs'],
-        **snapshot['params']
-    )
-
     pnl_chart = create_pnl_chart(
         underlying_range=new_price_range,
         pnl_at_T=pnl_T_main,
         pnl_at_expiration=pnl_exp_main,
         strategy_name=f"{current_strategy_name} (Simulazione)",
         days_to_expiration=simulated_params['base_days_to_expiration'],
-        original_pnl_at_T=pnl_T_orig,
-        original_pnl_at_expiration=pnl_exp_orig,
-        original_underlying_range=snapshot['params']['underlying_range']
+        # USA I DATI PRE-CALCOLATI DALLO SNAPSHOT
+        original_pnl_at_T=snapshot['pnl_T'],
+        original_pnl_at_expiration=snapshot['pnl_exp'],
+        original_underlying_range=snapshot['range']
     )
 
     st.plotly_chart(pnl_chart, use_container_width=True)
