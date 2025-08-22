@@ -12,11 +12,11 @@ def render_playbook_tab():
     """
     st.header("⚙️ Motore di Simulazione 'What-If'")
 
-    # La tab funziona solo se uno snapshot è stato creato nella Tab 1
     if "snapshot" not in st.session_state:
         st.info("Vai alla tab 'Analisi Strategia', imposta una posizione e clicca su '📸 Usa questo grafico come riferimento per il Playbook' per iniziare.")
         return
 
+    # Usa solo dati dallo snapshot, isolati dal resto dell'app
     snapshot = st.session_state.snapshot
 
     st.subheader("1. Definisci uno Scenario di Mercato (vs. Riferimento)")
@@ -34,7 +34,7 @@ def render_playbook_tab():
         legs_to_simulate = snapshot["legs"]
         name_to_simulate = snapshot["name"]
 
-    # Prepara i parametri per la simulazione
+    # Prepara i parametri per la simulazione PARTENDO DALLO SNAPSHOT
     simulated_params = copy.deepcopy(snapshot['params'])
     new_underlying_price = simulated_params['underlying_price'] * (1 + sim_price_change_percent / 100.0)
     new_price_range = np.linspace(new_underlying_price * 0.7, new_underlying_price * 1.3, 200)
@@ -98,7 +98,7 @@ def render_playbook_tab():
         days_to_expiration=simulated_params['base_days_to_expiration'],
         original_pnl_at_T=snapshot['pnl_T'],
         original_pnl_at_expiration=snapshot['pnl_exp'],
-        original_underlying_range=snapshot['range']
+        original_underlying_range=snapshot['params']['underlying_range']
     )
 
     st.plotly_chart(pnl_chart, use_container_width=True)
