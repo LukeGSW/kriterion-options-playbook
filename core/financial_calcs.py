@@ -1,27 +1,90 @@
 import numpy as np
+from py_vollib.black_scholes_merton import black_scholes_merton
+from py_vollib.black_scholes_merton.greeks.analytical import delta, gamma, theta, vega
 
-def calculate_payoff_at_expiration(strategy_legs, center_strike, underlying_range):
+# Flag per il tipo di opzione, richiesto da py_vollib
+OPTION_TYPE = {'call': 'c', 'put': 'p'}
+
+def calculate_pnl_and_greeks(
+    strategy_legs, 
+    center_strike, 
+    underlying_range, 
+    days_to_expiration, 
+    implied_volatility,
+    interest_rate=0.01 # Tasso risk-free, si può rendere un input
+    ):
     """
-    Calcola il P/L aggregato di una strategia alla scadenza.
-    Per la Fase 1, gestisce solo il valore intrinseco.
+    Calcola P/L a una data intermedia, P/L a scadenza e le Greche aggregate.
     """
-    total_payoff = np.zeros_like(underlying_range)
+    # Inizializza i contenitori per i risultati
+    pnl_at_T = np.zeros_like(underlying_range)
+    pnl_at_expiration = np.zeros_like(underlying_range)
+    
+    total_delta = 0.0
+    total_gamma = 0.0
+    total_theta = 0.0
+    total_vega = 0.0
+    
+    # Parametri temporali per i calcoli
+    T = days_to_expiration / 365.0
+    iv = implied_volatility / 100.0
+
+    # Calcola il prezzo corrente di ogni gamba per determinare il costo/credito della strategia
+    strategy_cost = 0
+    current_underlying_price = underlying_range[np.abs(underlying_range - center_strike).argmin()]
 
     for leg in strategy_legs:
-        # Calcola lo strike effettivo della gamba
         strike = center_strike + leg.get("strike_offset", 0)
+        flag = OPTION_TYPE[leg["type"]]
         
-        payoff = np.zeros_like(underlying_range)
+        # Calcolo del costo iniziale della gamba
+        leg_price = black_scholes_merton(flag, current_underlying_price, strike, T, interest_rate, iv)
+        cost_multiplier = -1 if leg["direction"] == "long" else 1
+        strategy_cost += leg_price * leg["ratio"] * cost_multiplier
         
+        # Calcolo Greche (solo al prezzo corrente del sottostante)
+        # Il calcolo viene fatto per una singola opzione e poi aggregato
+        d = delta(flag, current_underlying_price, strike, T, interest_rate, iv)
+        g = gamma(flag, current_underlying_price, strike, T, interest_rate, iv)
+        t = theta(flag, current_underlying_price, strike, T, interest_rate, iv)
+        v = vega(flag, current_underlying_price, strike, T, interest_rate, iv)
+
+        # Inverte il segno delle greche per le posizioni short
+        short_multiplier = 1 if leg["direction"] == "long" else -1
+        total_delta += d * leg["ratio"] * short_multiplier
+        total_gamma += g * leg["ratio"] * short_multiplier
+        total_theta += t * leg["ratio"] * short_multiplier
+        total_vega += v * leg["ratio"] * short_multiplier
+        
+        # --- Calcolo P/L sul range di prezzi ---
+        # 1. P/L a scadenza (valore intrinseco)
+        payoff_expiration = np.zeros_like(underlying_range)
         if leg["type"] == "call":
-            payoff = np.maximum(0, underlying_range - strike)
-        elif leg["type"] == "put":
-            payoff = np.maximum(0, strike - underlying_range)
-
-        # Inverte il payoff per le posizioni short
+            payoff_expiration = np.maximum(0, underlying_range - strike)
+        else: # put
+            payoff_expiration = np.maximum(0, strike - underlying_range)
+        
         if leg["direction"] == "short":
-            payoff *= -1
+            payoff_expiration *= -1
             
-        total_payoff += payoff * leg["ratio"]
+        pnl_at_expiration += payoff_expiration * leg["ratio"]
 
-    return total_payoff
+        # 2. P/L a T (data intermedia, usando Black-Scholes)
+        option_price_at_T = black_scholes_merton(flag, underlying_range, strike, T, interest_rate, iv)
+        if leg["direction"] == "short":
+            option_price_at_T *= -1
+        
+        pnl_at_T += option_price_at_T * leg["ratio"]
+
+    # Normalizza il P/L rispetto al costo/credito iniziale
+    pnl_at_T += strategy_cost
+    pnl_at_expiration += strategy_cost
+    
+    greeks = {
+        "delta": total_delta,
+        "gamma": total_gamma,
+        "theta": total_theta,
+        "vega": total_vega
+    }
+
+    return pnl_at_T, pnl_at_expiration, greeks
