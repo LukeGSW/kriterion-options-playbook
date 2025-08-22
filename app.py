@@ -4,7 +4,7 @@ import pandas as pd
 from strategies.strategy_database import STRATEGY_DATABASE
 from core.financial_calcs import calculate_pnl_and_greeks, get_strike
 from core.plotting import create_pnl_chart
-from playbook.playbook_ui import render_playbook_tab # <-- IMPORTAZIONE NUOVA
+from playbook.playbook_ui import render_playbook_tab
 
 # --- Configurazione Pagina ---
 st.set_page_config(
@@ -67,8 +67,11 @@ if stock_position != "Nessuno":
 with tab1:
     if not modified_legs:
         st.subheader(f"Strategia Logica: {final_strategy_name}")
-        st.info("Questa è una strategia concettuale o una sequenza operativa...")
-        # ... (codice per mostrare note etc. invariato)
+        st.info("Questa è una strategia concettuale o una sequenza operativa. Il profilo di rischio non è direttamente plottabile con i parametri attuali.")
+        if "sequence" in strategy_details:
+            st.markdown("##### Sequenza Operativa:")
+            for step in strategy_details["sequence"]:
+                st.markdown(f"- {step}")
     else:
         price_range = np.linspace(underlying_price * 0.7, underlying_price * 1.3, 200)
         
@@ -93,12 +96,15 @@ with tab1:
             else:
                 leg_strike = get_strike(leg, center_strike, underlying_price)
 
+            # CORREZIONE PER WARNING SERIALIZZAZIONE
+            scadenza_gg = str(base_days_to_expiration + leg.get("expiry_offset", 0)) if leg['type'] != 'stock' else "N/A"
+
             leg_data.append({
                 "Direzione": leg["direction"].capitalize(),
                 "Quantità": leg["ratio"],
                 "Tipo": leg["type"].capitalize(),
                 "Strike/Prezzo": f"{leg_strike:.2f}" if isinstance(leg_strike, (int, float)) else leg_strike,
-                "Scadenza (gg)": base_days_to_expiration + leg.get("expiry_offset", 0) if leg['type'] != 'stock' else "N/A"
+                "Scadenza (gg)": scadenza_gg
             })
         df_legs = pd.DataFrame(leg_data)
         st.dataframe(df_legs, use_container_width=True, hide_index=True)
@@ -127,7 +133,6 @@ with tab1:
         st.markdown("---")
         st.subheader("Analisi Qualitativa della Strategia")
         if "analysis" in strategy_details and isinstance(strategy_details["analysis"], dict):
-            # ... (codice analisi qualitativa invariato)
             analysis = strategy_details["analysis"]
             st.markdown(f"**🎯 Quando utilizzarla:** {analysis.get('when_to_use', 'N/A')}")
             st.markdown("**🔍 Condizioni di Mercato:**")
@@ -136,7 +141,7 @@ with tab1:
             st.markdown(f"- **Sconsigliate:** {conditions.get('poor', 'N/A')}")
             st.markdown(f"**✨ Peculiarità:** {analysis.get('peculiarities', 'N/A')}")
         else:
-            st.warning("Dati di analisi qualitativa non trovati...")
+            st.warning("Dati di analisi qualitativa non trovati o in formato non corretto per questa strategia nel database.")
 
 # --- Contenuto Tab 2: Playbook (What-If) ---
 with tab2:
@@ -144,7 +149,6 @@ with tab2:
     base_params = {
         "name": final_strategy_name,
         "dte": base_days_to_expiration,
-        "price_range": np.linspace(underlying_price * 0.7, underlying_price * 1.3, 200),
         "calc_params": {
             "center_strike": center_strike,
             "underlying_range": np.linspace(underlying_price * 0.7, underlying_price * 1.3, 200),
@@ -153,4 +157,5 @@ with tab2:
             "underlying_price": underlying_price
         }
     }
-    render_playbook_tab(strategy_details, base_params)
+    # CORREZIONE KEYERROR: Passo `modified_legs` come argomento separato
+    render_playbook_tab(strategy_details, base_params, modified_legs)
