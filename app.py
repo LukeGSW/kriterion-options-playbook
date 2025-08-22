@@ -18,7 +18,6 @@ st.markdown("Il simulatore interattivo per strategie in opzioni.")
 # --- Sidebar per Input Utente ---
 st.sidebar.header("Parametri di Input")
 
-# 1. Scelta Strategia
 categories = list(STRATEGY_DATABASE.keys())
 selected_category = st.sidebar.selectbox("1. Scegli una Categoria", options=categories)
 
@@ -30,7 +29,6 @@ st.sidebar.info(strategy_details["description"])
 if "note" in strategy_details:
     st.sidebar.warning(f'Nota: {strategy_details["note"]}')
 
-# --- NUOVA SEZIONE: AGGIUNTA SOTTOSTANTE DINAMICO ---
 st.sidebar.subheader("Aggiungi Sottostante (Opzionale)")
 stock_position = st.sidebar.radio(
     "Aggiungi una posizione sul sottostante alla strategia",
@@ -39,12 +37,10 @@ stock_position = st.sidebar.radio(
     label_visibility="collapsed"
 )
 
-# 3. Parametri di Mercato
 st.sidebar.subheader("3. Parametri di Mercato")
 underlying_price = st.sidebar.number_input("Prezzo Sottostante (S)", value=100.0, step=0.5)
 center_strike = st.sidebar.number_input("Strike Centrale (K)", value=100.0, step=0.5)
 
-# 4. Parametri di Analisi
 st.sidebar.subheader("4. Parametri di Analisi")
 base_days_to_expiration = st.sidebar.slider("Giorni alla Scadenza (base)", min_value=1, max_value=365, value=30)
 implied_volatility = st.sidebar.slider("Volatilità Implicita (%)", min_value=5, max_value=150, value=20)
@@ -53,13 +49,10 @@ implied_volatility = st.sidebar.slider("Volatilità Implicita (%)", min_value=5,
 tab1, tab2 = st.tabs(["Analisi Strategia", "Playbook (What-If)"])
 
 # --- Logica di Modifica della Strategia ---
-# Crea una copia modificabile delle gambe della strategia
 modified_legs = strategy_details.get("legs", []).copy()
 final_strategy_name = selected_strategy_name
 
-# Aggiunge la gamba del sottostante se selezionata dall'utente
 if stock_position != "Nessuno":
-    # Controlla se la strategia di base ha già una posizione stock per evitare duplicati
     has_stock_leg = any(leg.get('type') == 'stock' for leg in modified_legs)
     if not has_stock_leg:
         modified_legs.append({
@@ -68,7 +61,6 @@ if stock_position != "Nessuno":
             "ratio": 1
         })
         final_strategy_name = f"{selected_strategy_name} + {stock_position} Stock"
-
 
 # --- Contenuto Tab 1: Analisi Strategia ---
 with tab1:
@@ -81,12 +73,15 @@ with tab1:
                 st.markdown(f"- {step}")
     else:
         price_range = np.linspace(underlying_price * 0.7, underlying_price * 1.3, 200)
+        
+        # ORA PASSIAMO IL PREZZO CORRETTO ALLA FUNZIONE DI CALCOLO
         pnl_T, pnl_exp, greeks = calculate_pnl_and_greeks(
             strategy_legs=modified_legs,
             center_strike=center_strike,
             underlying_range=price_range,
             base_days_to_expiration=base_days_to_expiration,
-            implied_volatility=implied_volatility
+            implied_volatility=implied_volatility,
+            underlying_price=underlying_price # <-- PASSAGGIO DEL PARAMETRO CORRETTO
         )
 
         st.subheader(f"Dettaglio Strategia: {final_strategy_name}")
@@ -95,7 +90,7 @@ with tab1:
         for leg in modified_legs:
             leg_strike = "N/A"
             if leg['type'] == 'stock':
-                leg_strike = underlying_price # CORREZIONE: Mostra il prezzo del sottostante
+                leg_strike = underlying_price
             else:
                 leg_strike = get_strike(leg, center_strike, underlying_price)
 
@@ -129,6 +124,19 @@ with tab1:
             days_to_expiration=base_days_to_expiration
         )
         st.plotly_chart(pnl_chart, use_container_width=True)
+
+        st.markdown("---")
+        st.subheader("Analisi Qualitativa della Strategia")
+        if "analysis" in strategy_details and isinstance(strategy_details["analysis"], dict):
+            analysis = strategy_details["analysis"]
+            st.markdown(f"**🎯 Quando utilizzarla:** {analysis.get('when_to_use', 'N/A')}")
+            st.markdown("**🔍 Condizioni di Mercato:**")
+            conditions = analysis.get('market_conditions', {})
+            st.markdown(f"- **Ottimali:** {conditions.get('optimal', 'N/A')}")
+            st.markdown(f"- **Sconsigliate:** {conditions.get('poor', 'N/A')}")
+            st.markdown(f"**✨ Peculiarità:** {analysis.get('peculiarities', 'N/A')}")
+        else:
+            st.warning("Dati di analisi qualitativa non trovati o in formato non corretto per questa strategia nel database.")
 
 # --- Contenuto Tab 2: Playbook (What-If) ---
 with tab2:
