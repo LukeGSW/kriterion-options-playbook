@@ -9,7 +9,7 @@ def create_pnl_chart(
     days_to_expiration,
     original_pnl_at_T=None,
     original_pnl_at_expiration=None,
-    original_underlying_range=None  # <-- PARAMETRO AGGIUNTO
+    original_underlying_range=None
     ):
     """
     Genera il grafico P/L. Se vengono forniti i dati originali,
@@ -17,11 +17,10 @@ def create_pnl_chart(
     """
     fig = go.Figure()
 
-    # Se ci sono dati originali, plottali prima usando il loro asse X
+    # Se ci sono dati originali, plottali prima usando il loro asse X indipendente
     if original_pnl_at_expiration is not None and original_underlying_range is not None:
-        x_axis_orig = original_underlying_range
         fig.add_trace(go.Scatter(
-            x=x_axis_orig, 
+            x=original_underlying_range, 
             y=original_pnl_at_expiration, 
             mode='lines', 
             name='P/L Originale (Scadenza)',
@@ -29,9 +28,8 @@ def create_pnl_chart(
             opacity=0.5
         ))
     if original_pnl_at_T is not None and original_underlying_range is not None:
-        x_axis_orig = original_underlying_range
         fig.add_trace(go.Scatter(
-            x=x_axis_orig, 
+            x=original_underlying_range, 
             y=original_pnl_at_T, 
             mode='lines', 
             name='P/L Originale (T)',
@@ -44,7 +42,7 @@ def create_pnl_chart(
         x=underlying_range, 
         y=pnl_at_expiration, 
         mode='lines', 
-        name='P/L a Scadenza',
+        name='P/L a Scadenza (Simulazione)',
         line=dict(color='royalblue', width=3)
     ))
 
@@ -53,14 +51,14 @@ def create_pnl_chart(
         x=underlying_range, 
         y=pnl_at_T, 
         mode='lines', 
-        name=f'P/L a T-{days_to_expiration} giorni',
+        name=f'P/L a T-{days_to_expiration} giorni (Simulazione)',
         line=dict(color='firebrick', width=2, dash='dash')
     ))
 
     # Linea dello zero
     fig.add_hline(y=0, line_width=1, line_dash="dash", line_color="gray")
 
-    # Calcolo punti di breakeven a scadenza (sulla curva principale)
+    # Calcolo punti di breakeven a scadenza (sulla curva principale/simulata)
     sign_changes = np.where(np.diff(np.sign(pnl_at_expiration)))[0]
     for be_index in sign_changes:
         fig.add_vline(x=underlying_range[be_index], line_width=1, line_dash="dot", line_color="red",
