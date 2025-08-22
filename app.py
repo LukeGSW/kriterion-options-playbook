@@ -18,21 +18,40 @@ st.markdown("Il simulatore interattivo per strategie in opzioni.")
 # --- Sidebar per Input Utente ---
 st.sidebar.header("Parametri di Input")
 
-# 1. Scelta Strategia
-selected_strategy_name = st.sidebar.selectbox(
-    "1. Scegli una Strategia",
-    options=list(STRATEGY_DATABASE.keys())
+# --- NUOVA SELEZIONE A DUE LIVELLI ---
+# 1. Scelta Categoria
+categories = list(STRATEGY_DATABASE.keys())
+selected_category = st.sidebar.selectbox(
+    "1. Scegli una Categoria",
+    options=categories
 )
-strategy_details = STRATEGY_DATABASE[selected_strategy_name]
-st.sidebar.info(strategy_details["description"])
 
-# 2. Parametri di Mercato e Contratto
-st.sidebar.subheader("2. Parametri di Mercato")
+# 2. Scelta Strategia (dipendente dalla categoria)
+strategies_in_category = list(STRATEGY_DATABASE[selected_category].keys())
+selected_strategy_name = st.sidebar.selectbox(
+    "2. Scegli una Strategia",
+    options=strategies_in_category,
+    # Se la categoria non ha strategie, disabilita il selectbox
+    disabled=not strategies_in_category
+)
+
+# Mostra la descrizione solo se una strategia è stata selezionata
+if selected_strategy_name:
+    strategy_details = STRATEGY_DATABASE[selected_category][selected_strategy_name]
+    st.sidebar.info(strategy_details["description"])
+else:
+    # Placeholder nel caso una categoria sia vuota
+    strategy_details = None
+    st.sidebar.warning("Nessuna strategia definita per questa categoria.")
+
+
+# 3. Parametri di Mercato e Contratto
+st.sidebar.subheader("3. Parametri di Mercato")
 underlying_price = st.sidebar.number_input("Prezzo Sottostante (S)", value=100.0, step=0.5)
 center_strike = st.sidebar.number_input("Strike Centrale (K)", value=100.0, step=0.5)
 
-# 3. Parametri per Analisi Avanzata
-st.sidebar.subheader("3. Parametri di Analisi")
+# 4. Parametri per Analisi Avanzata
+st.sidebar.subheader("4. Parametri di Analisi")
 days_to_expiration = st.sidebar.slider(
     "Giorni alla Scadenza (DTE)", 
     min_value=1, max_value=365, value=30
@@ -47,8 +66,8 @@ tab1, tab2 = st.tabs(["Analisi Strategia", "Playbook (What-If)"])
 
 # --- Contenuto Tab 1: Analisi Strategia ---
 with tab1:
-    if selected_strategy_name:
-        # Calcola P/L e Greche
+    # Esegui i calcoli solo se una strategia valida è stata selezionata
+    if strategy_details and strategy_details.get("legs"):
         price_range = np.linspace(underlying_price * 0.7, underlying_price * 1.3, 200)
         pnl_T, pnl_exp, greeks = calculate_pnl_and_greeks(
             strategy_legs=strategy_details["legs"],
@@ -59,8 +78,8 @@ with tab1:
         )
 
         st.subheader(f"Dettaglio Strategia: {selected_strategy_name}")
-
-        # --- NUOVA TABELLA DETTAGLIO GAMBE ---
+        
+        # Tabella dettaglio gambe
         leg_data = []
         for leg in strategy_details["legs"]:
             leg_data.append({
@@ -69,7 +88,6 @@ with tab1:
                 "Tipo": leg["type"].capitalize(),
                 "Strike": center_strike + leg.get("strike_offset", 0)
             })
-        
         df_legs = pd.DataFrame(leg_data)
         st.dataframe(df_legs, use_container_width=True)
         
@@ -97,19 +115,10 @@ with tab1:
         st.plotly_chart(pnl_chart, use_container_width=True)
 
     else:
-        st.info("Seleziona una strategia dalla barra laterale per iniziare.")
+        st.info("Seleziona una categoria e una strategia dalla barra laterale per iniziare.")
 
 # --- Contenuto Tab 2: Playbook (What-If) ---
 with tab2:
     st.header("⚙️ Motore di Simulazione 'What-If'")
     st.markdown("Questa sezione è in fase di sviluppo (Prossimo Step).")
     st.info("Qui potrai definire scenari di mercato futuri e testare aggiustamenti sulla tua strategia, visualizzando l'impatto sul profilo di rischio in un grafico comparativo.", icon="🛠️")
-    
-    # Qui verrà implementata la logica della Fase 3
-    # Esempio di struttura futura:
-    # st.subheader("Definisci lo Scenario Futuro")
-    # new_price = st.slider(...)
-    # days_passed = st.slider(...)
-    # st.subheader("Aggiustamenti Consigliati")
-    # if st.button("Rolla la strategia"):
-    #     # ... logica di aggiustamento ...
