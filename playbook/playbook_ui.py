@@ -8,7 +8,6 @@ from playbook.adjustments import roll_strategy
 def render_playbook_tab():
     """
     Renderizza l'intera interfaccia e la logica per la tab "Playbook (What-If)".
-    Questa funzione ora dipende interamente da uno 'snapshot' creato nella Tab 1.
     """
     st.header("⚙️ Motore di Simulazione 'What-If'")
 
@@ -27,11 +26,9 @@ def render_playbook_tab():
 
     # Determina la strategia da usare (modificata o quella dello snapshot)
     if "current_adjusted_strategy" in st.session_state:
-        legs_to_simulate = st.session_state.current_adjusted_strategy["legs"]
-        name_to_simulate = st.session_state.current_adjusted_strategy["name"]
+        strategy_to_simulate = st.session_state.current_adjusted_strategy
     else:
-        legs_to_simulate = snapshot["legs"]
-        name_to_simulate = snapshot["name"]
+        strategy_to_simulate = snapshot
 
     # Prepara i parametri per la simulazione
     simulated_params = copy.deepcopy(snapshot['params'])
@@ -43,14 +40,11 @@ def render_playbook_tab():
         'base_days_to_expiration': snapshot['params']['base_days_to_expiration'] - sim_days_passed
     })
 
-    # Calcola P/L e Greche SOLO per la simulazione corrente
-    pnl_T_sim, _, greeks_sim = calculate_pnl_and_greeks(
-        strategy_legs=legs_to_simulate,
+    # Calcola P/L e Greche per la strategia simulata
+    pnl_T_sim, pnl_exp_sim, greeks_sim = calculate_pnl_and_greeks(
+        strategy_legs=strategy_to_simulate['legs'],
         **simulated_params
     )
-    
-    # IL P/L A SCADENZA VIENE LETTO DALLO SNAPSHOT E NON VIENE MAI PIÙ TOCCATO
-    pnl_exp_fixed = snapshot['pnl_exp']
     
     st.markdown("---")
     sim_cols = st.columns([1.5, 1, 1, 1, 1])
@@ -68,18 +62,17 @@ def render_playbook_tab():
         st.metric("Vega", f"{greeks_sim['vega']:.2f}")
 
     st.markdown("---")
-
     st.subheader("2. Applica un Aggiustamento Strutturale")
     roll_cols = st.columns(3)
     with roll_cols[0]:
         if st.button("Rolla su (Roll Up) 📈"):
-            new_legs = roll_strategy(legs_to_simulate, 5)
+            new_legs = roll_strategy(strategy_to_simulate['legs'], 5)
             if new_legs:
                 st.session_state.current_adjusted_strategy = {"name": f"{snapshot['name']} (Modificato)", "legs": new_legs}
                 st.rerun()
     with roll_cols[1]:
         if st.button("Rolla giù (Roll Down) 📉"):
-            new_legs = roll_strategy(legs_to_simulate, -5)
+            new_legs = roll_strategy(strategy_to_simulate['legs'], -5)
             if new_legs:
                 st.session_state.current_adjusted_strategy = {"name": f"{snapshot['name']} (Modificato)", "legs": new_legs}
                 st.rerun()
@@ -92,14 +85,19 @@ def render_playbook_tab():
     st.markdown("---")
     st.subheader("3. Grafico Comparativo Profit/Loss")
 
+    # LA CHIAMATA ALLA FUNZIONE DI PLOTTING ORA È PULITA E CORRETTA
     pnl_chart = create_pnl_chart(
-        underlying_range=snapshot['params']['underlying_range'], # Usa SEMPRE l'asse X originale per la curva fissa
-        pnl_at_T=pnl_T_sim, # La curva rossa usa i dati simulati
-        pnl_at_expiration=pnl_exp_fixed, # La curva blu usa i dati FISSI dello snapshot
-        strategy_name=f"{name_to_simulate} (Simulazione)",
+        # Dati per le curve principali (blu e rossa), che sono sempre quelle simulate
+        underlying_range=simulated_params['underlying_range'],
+        pnl_at_T=pnl_T_sim,
+        pnl_at_expiration=pnl_exp_sim,
+        strategy_name=f"{strategy_to_simulate['name']} (Simulazione)",
         days_to_expiration=simulated_params['base_days_to_expiration'],
-        # Passiamo il nuovo range di prezzi solo per la curva rossa (at now)
-        simulated_underlying_range=new_price_range
+        
+        # Dati per le curve di riferimento (grigie), che sono sempre quelle dello snapshot
+        original_pnl_at_T=snapshot['pnl_T'],
+        original_pnl_at_expiration=snapshot['pnl_exp'],
+        original_underlying_range=snapshot['range']
     )
 
     st.plotly_chart(pnl_chart, use_container_width=True)
