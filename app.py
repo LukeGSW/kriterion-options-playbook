@@ -140,22 +140,24 @@ with tab1:
 
         st.markdown("---")
         st.subheader("Playbook")
+        if st.button("📸 Usa questo grafico come riferimento per il Playbook"):
+            # --- FIX: crea copie immutabili per evitare mutazioni in-place ---
+            snap_params = copy.deepcopy(calc_params)
+            # garantisco che la griglia sia una copia fisica
+            snap_params["underlying_range"] = np.array(calc_params["underlying_range"], copy=True)
 
-        # Bottone: congela baseline per il What-If
-        if st.button("📸 Usa questo grafico come riferimento per il Playbook", key="lock_baseline"):
             st.session_state.snapshot = {
-                "timestamp": datetime.now().isoformat(timespec="seconds"),
                 "name": final_strategy_name,
                 "legs": copy.deepcopy(modified_legs),
-                "params": copy.deepcopy(calc_params),   # contiene: center_strike, underlying_range, base_days_to_expiration, implied_volatility, underlying_price
-                "pnl_T": pnl_T,                         # opzionale: utile per confronto visivo se servisse
-                "pnl_exp": pnl_exp                      # <<< CURVA A SCADENZA CONGELATA
+                "params": snap_params,
+                # copie fisiche degli array, così NON cambiano quando muovi gli slider
+                "pnl_T":   np.array(pnl_T,  copy=True),
+                "pnl_exp": np.array(pnl_exp, copy=True)
             }
-            # Pulizia stato What-If (chiavi isolate)
-            for k in list(st.session_state.keys()):
-                if str(k).startswith("whatif_"):
-                    del st.session_state[k]
-            st.success(f"Snapshot creato per '{final_strategy_name}'. Vai alla tab 'Playbook'.")
+            if "current_adjusted_strategy" in st.session_state:
+                del st.session_state.current_adjusted_strategy
+            st.success(f"Snapshot creato per '{final_strategy_name}'. Vai alla tab 'Playbook' per la simulazione.")
+
 
         st.subheader("Analisi Qualitativa della Strategia")
         if "analysis" in strategy_details and isinstance(strategy_details["analysis"], dict):
