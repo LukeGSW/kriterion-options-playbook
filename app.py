@@ -56,13 +56,13 @@ if selected_strategy_name:
         implied_volatility=implied_volatility
     )
 
-    # 3. Mostra la Dashboard delle Greche 
-    st.subheader("Dashboard delle Greche Aggregate")
+    # 3. Mostra la Dashboard delle Greche
+    st.subheader("Dashboard delle Greche per Contratto")
     cols = st.columns(4)
-    cols[0].metric("Delta", f"{greeks['delta']:.4f}")
-    cols[1].metric("Gamma", f"{greeks['gamma']:.4f}")
-    cols[2].metric("Theta", f"{greeks['theta']:.4f}")
-    cols[3].metric("Vega", f"{greeks['vega']:.4f}")
+    cols[0].metric("Delta", f"{greeks['delta']:.2f}")
+    cols[1].metric("Gamma", f"{greeks['gamma']:.2f}")
+    cols[2].metric("Theta", f"{greeks['theta']:.2f}")
+    cols[3].metric("Vega", f"{greeks['vega']:.2f}")
     
     st.markdown("---")
 
