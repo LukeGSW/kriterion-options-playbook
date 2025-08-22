@@ -67,11 +67,7 @@ if stock_position != "Nessuno":
 with tab1:
     if not modified_legs:
         st.subheader(f"Strategia Logica: {final_strategy_name}")
-        st.info("Questa è una strategia concettuale o una sequenza operativa. Il profilo di rischio non è direttamente plottabile con i parametri attuali.")
-        if "sequence" in strategy_details:
-            st.markdown("##### Sequenza Operativa:")
-            for step in strategy_details["sequence"]:
-                st.markdown(f"- {step}")
+        st.info("Questa è una strategia concettuale o una sequenza operativa.")
     else:
         price_range = np.linspace(underlying_price * 0.7, underlying_price * 1.3, 200)
         
@@ -88,6 +84,7 @@ with tab1:
 
         st.subheader(f"Dettaglio Strategia: {final_strategy_name}")
         
+        # ... (codice tabella e greche invariato) ...
         leg_data = []
         for leg in modified_legs:
             leg_strike = "N/A"
@@ -95,42 +92,46 @@ with tab1:
                 leg_strike = underlying_price
             else:
                 leg_strike = get_strike(leg, center_strike, underlying_price)
-
-            # CORREZIONE PER WARNING SERIALIZZAZIONE
             scadenza_gg = str(base_days_to_expiration + leg.get("expiry_offset", 0)) if leg['type'] != 'stock' else "N/A"
-
             leg_data.append({
-                "Direzione": leg["direction"].capitalize(),
-                "Quantità": leg["ratio"],
-                "Tipo": leg["type"].capitalize(),
+                "Direzione": leg["direction"].capitalize(), "Quantità": leg["ratio"], "Tipo": leg["type"].capitalize(),
                 "Strike/Prezzo": f"{leg_strike:.2f}" if isinstance(leg_strike, (int, float)) else leg_strike,
                 "Scadenza (gg)": scadenza_gg
             })
         df_legs = pd.DataFrame(leg_data)
         st.dataframe(df_legs, use_container_width=True, hide_index=True)
-        
         st.markdown("---")
-
         st.subheader("Dashboard delle Greche per Contratto")
         cols = st.columns(4)
         cols[0].metric("Delta", f"{greeks['delta']:.2f}")
         cols[1].metric("Gamma", f"{greeks['gamma']:.2f}")
         cols[2].metric("Theta", f"{greeks['theta']:.2f}")
         cols[3].metric("Vega", f"{greeks['vega']:.2f}")
-        
         st.markdown("---")
 
         st.subheader("Grafico Profit/Loss")
         pnl_chart = create_pnl_chart(
-            underlying_range=price_range,
-            pnl_at_T=pnl_T,
-            pnl_at_expiration=pnl_exp,
-            strategy_name=final_strategy_name,
-            days_to_expiration=base_days_to_expiration
+            underlying_range=price_range, pnl_at_T=pnl_T, pnl_at_expiration=pnl_exp,
+            strategy_name=final_strategy_name, days_to_expiration=base_days_to_expiration
         )
         st.plotly_chart(pnl_chart, use_container_width=True)
 
         st.markdown("---")
+        
+        # --- NUOVO PULSANTE SNAPSHOT SPOSTATO QUI ---
+        st.subheader("Playbook")
+        if st.button("📸 Usa questo grafico come riferimento per il Playbook"):
+            st.session_state.snapshot = {
+                "name": final_strategy_name,
+                "legs": modified_legs,
+                "params": calc_params.copy(),
+                "pnl_T": pnl_T,
+                "pnl_exp": pnl_exp,
+                "range": price_range
+            }
+            st.success(f"Snapshot creato per '{final_strategy_name}'. Vai alla tab 'Playbook' per la simulazione.")
+
+        # ... (codice analisi qualitativa invariato) ...
         st.subheader("Analisi Qualitativa della Strategia")
         if "analysis" in strategy_details and isinstance(strategy_details["analysis"], dict):
             analysis = strategy_details["analysis"]
@@ -141,21 +142,8 @@ with tab1:
             st.markdown(f"- **Sconsigliate:** {conditions.get('poor', 'N/A')}")
             st.markdown(f"**✨ Peculiarità:** {analysis.get('peculiarities', 'N/A')}")
         else:
-            st.warning("Dati di analisi qualitativa non trovati o in formato non corretto per questa strategia nel database.")
+            st.warning("Dati di analisi qualitativa non trovati.")
 
 # --- Contenuto Tab 2: Playbook (What-If) ---
 with tab2:
-    # Raggruppa i parametri di base da passare alla funzione della tab
-    base_params = {
-        "name": final_strategy_name,
-        "dte": base_days_to_expiration,
-        "calc_params": {
-            "center_strike": center_strike,
-            "underlying_range": np.linspace(underlying_price * 0.7, underlying_price * 1.3, 200),
-            "base_days_to_expiration": base_days_to_expiration,
-            "implied_volatility": implied_volatility,
-            "underlying_price": underlying_price
-        }
-    }
-    # CORREZIONE KEYERROR: Passo `modified_legs` come argomento separato
-    render_playbook_tab(strategy_details, base_params, modified_legs)
+    render_playbook_tab()
